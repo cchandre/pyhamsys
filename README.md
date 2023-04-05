@@ -8,7 +8,8 @@ Names of integrators include:
 - 'Verlet' (order 2)
 - 'Forest-Ruth' (order 4) from [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L)
 - 'PEFRL' (order 4) from [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4)
-- 'BM4' (order 4) and 'BM6' (order 6) refer respectively to BM<sub>6</sub>4 and BM<sub>10</sub>6 from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7)
+- 'BM4' (order 4) refers to PRK<sub>6</sub>4 from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7)
+- 'BM6' (order 6) refers to PRK<sub>10</sub>6 from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7)
 
 Usage: *integrator* = SymplecticIntegrator(*name*, *step*, *order*)
 where *name* is one of the names listed above, *step* is the time step of the integrator (float), and *order* is the order of the splitting, so 1 or -1 depending on the order AB or BA of the splitting. 

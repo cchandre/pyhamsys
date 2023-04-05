@@ -10,30 +10,29 @@ Names of integrators include:
 - 'PEFRL' (order 4) from [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4)
 - 'BM4' (order 4) and 'BM6' (order 6) refer respectively to BM<sub>6</sub>4 and BM<sub>10</sub>6 from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7)
 
-Usage: integrator = SymplecticIntegrator(*name*, *step*, *order*)
+Usage: *integrator* = SymplecticIntegrator(*name*, *step*, *order*)
 where *name* is one of the names listed above, *step* is the time step of the integrator (float), and *order* is the order of the splitting, so 1 or -1 depending on the order AB or BA of the splitting. 
 
-The function `integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector y using one of the selected symplectic splitting integrators. It returns the value of y at times defines by the float, list or array times.
+The function *integrator*.`_integrate` integrates the Hamiltonian flow by one step.
 
-    Parameters
-      chi : function of (h, y), y being the state vector
-        function returning exp(h X_n)...exp(h X_1) y.
-      chi_star : function of (h, y)
-        function returning exp(h X_1)...exp(h X_n) y.
-      command : function of (t, y) 
-        function to be run at each time step. 
-      autonomous : boolean
-        if autonomous is False, the state vector y should be of the form 
-        y = [t, x]. 
+The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using one of the selected symplectic splitting integrator *integrator*. It returns the value of *y* at times defines by the float, list or array *times*.
 
-    Returns
-      out : array of times, and values of y at times
-        If times is a float of integer, the output is a tuple (t, y or x) where
-        y is the value of the state vector and y = [t, x] if autonomous is False.
-        If times is a list or array, returns the times and values of y or x at 
-        times. If times is a list or array with a single element, returns the 
-        times and values of y or x at all computed times. 
+Parameters:
+  - chi : function of (*h*, *y*), y being the state vector.
+    Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*.
+  - chi_star : function of (*h*, *y*).
+    Function returning exp(*h* X<sub>1</sub>)...exp(*h* X_<sub>*n*</sub>) *y*.
+  - *y* : initial state vector (numpy array)
+  - *times* : times at which the values of the state vector are computed
+  - *command* : function of (*t*, *y*).
+    Function to be run at each time step (e.g., plotting an observable associated with the state vector, or register specific events). 
+  - *autonomous* : boolean.
+    If autonomous is False, the state vector y should be of the form *y* = [*t*, *x*], where the first coordinate is time. 
 
-    References
-        McLachlan, R.I, 2022, "Tuning symplectic integrators is easy and 
-        worthwhile", *arxiv:2104.10269*. 
+Returns:
+   - If times is a float of integer, the output is a tuple (t, y or x) where y is the value of the state vector and y = [t, x] if autonomous is False.
+   - If times is a list or array, returns the times and values of y or x at times. 
+   - If times is a list or array with a single element, returns the times and values of y or x at all computed times. 
+
+References:
+  - McLachlan, R.I, 2022, "Tuning symplectic integrators is easy and worthwhile", [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)

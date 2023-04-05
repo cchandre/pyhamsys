@@ -36,3 +36,9 @@ Returns:
 
 References:
   - McLachlan, R.I, 2022, "Tuning symplectic integrators is easy and worthwhile", [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)
+
+
+Installation: 
+```
+pip install pyhamsys
+```

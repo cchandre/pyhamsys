@@ -1,2 +1,5 @@
 
 *.whl
+*.pyc
+/dist/
+/*.egg-info

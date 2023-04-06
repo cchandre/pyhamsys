@@ -16,7 +16,7 @@ where *name* is one of the names listed above, *step* is the time step of the in
 
 The function *integrator*.`_integrate` integrates the Hamiltonian flow by one step.
 
-The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using one of the selected symplectic splitting integrator *integrator*. It returns the value of *y* at times defines by the float, list or array *times*.
+The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the float, list or array *times*.
 
 Parameters:
   - chi : function of (*h*, *y*), y being the state vector.

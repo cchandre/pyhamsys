@@ -13,6 +13,9 @@ Names of integrators include:
 - 'RKN4b' (order 4) refers to SRKN<sub>6</sub><sup>*b*</sup> from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7) for splitting *H* = *A*(*p*) + *B*(*q*)
 - 'RKN6b' (order 6) refers to SRKN<sub>11</sub><sup>*b*</sup> from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7) for splitting *H* = *A*(*p*) + *B*(*q*)
 - 'RKN6a' (order 6) refers to SRKN<sub>14</sub><sup>*a*</sup> from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7) for splitting *H* = *A*(*p*) + *B*(*q*)
+- 'ABA104' (order (10,4)) from [S. Blanes, F. Casas, A. Farrés, J. Laskar, J. Makazaga, A. Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003) for splitting *H* = *A* + &epsilon; *B*
+- 'ABA864' (order (8,6,4)) from [S. Blanes, F. Casas, A. Farrés, J. Laskar, J. Makazaga, A. Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003) for splitting *H* = *A* + &epsilon; *B*
+- 'ABA1064' (order (10,6,4)) from [S. Blanes, F. Casas, A. Farrés, J. Laskar, J. Makazaga, A. Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003) for splitting *H* = *A* + &epsilon; *B*
 
 Usage: *integrator* = SymplecticIntegrator(*name*, *step*, *order*)
 where *name* is one of the names listed above, *step* is the time step of the integrator (float), and *order* is the order of the splitting, so 1 or -1 depending on the order AB or BA of the splitting. 

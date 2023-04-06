@@ -7,7 +7,7 @@ PyHamSys includes a class SymplecticIntegrator containing the following integrat
 Names of integrators include:
 - 'Verlet' (order 2)
 - 'Forest-Ruth' (order 4) from [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L)
-- 'PEFRL' (order 4) from [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4)
+- 'EFRL', 'PEFRL' or 'VEFRL' (order 4) from [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4). Optimized for *H* = *A* + *B*: 
 - 'BM4' (order 4) refers to PRK<sub>6</sub>4 from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7)
 - 'BM6' (order 6) refers to PRK<sub>10</sub>6 from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7)
 

@@ -2,20 +2,25 @@
 pyHamSys is a Python package for scientific computations involving Hamiltonian systems
 
 ## Symplectic Integrators
-PyHamSys includes a class SymplecticIntegrator containing the following integrators:
+pyHamSys includes a class SymplecticIntegrator containing the following integrators:
 
 Names of integrators include:
-- 'Verlet' (order 2)
-- 'Forest-Ruth' (order 4) from [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L)
-- 'EFRL', 'PEFRL' or 'VEFRL' (order 4) from [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4). Optimized for *H* = *A* + *B*; 'PEFRL' and 'VEFRL' are for splitting *H* = *A*(*p*) + *B*(*q*)
-- 'BM4' (order 4) refers to S<sub>6</sub> from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7)
-- 'BM6' (order 6) refers to S<sub>10</sub> from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7)
-- 'RKN4b' (order 4) refers to SRKN<sub>6</sub><sup>*b*</sup> from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7) for splitting *H* = *A*(*p*) + *B*(*q*)
-- 'RKN6b' (order 6) refers to SRKN<sub>11</sub><sup>*b*</sup> from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7) for splitting *H* = *A*(*p*) + *B*(*q*)
-- 'RKN6a' (order 6) refers to SRKN<sub>14</sub><sup>*a*</sup> from [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7) for splitting *H* = *A*(*p*) + *B*(*q*)
-- 'ABA104' (order (10,4)) from [S. Blanes, F. Casas, A. Farrés, J. Laskar, J. Makazaga, A. Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003) for splitting *H* = *A* + &epsilon; *B*
-- 'ABA864' (order (8,6,4)) from [S. Blanes, F. Casas, A. Farrés, J. Laskar, J. Makazaga, A. Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003) for splitting *H* = *A* + &epsilon; *B*
-- 'ABA1064' (order (10,6,4)) from [S. Blanes, F. Casas, A. Farrés, J. Laskar, J. Makazaga, A. Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003) for splitting *H* = *A* + &epsilon; *B*
+- `Verlet` (order 2)
+- From [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L): 
+    - `Forest-Ruth` (order 4)
+- From [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4): 
+    - `EFRL` (order 4) optimized for *H* = *A* + *B*; 
+    - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*)
+- From [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7):
+    - `BM4` (order 4) refers to S<sub>6</sub> 
+    - `BM6` (order 6) refers to S<sub>10</sub>
+    - `RKN4b` (order 4) refers to SRKN<sub>6</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*); 
+    - `RKN6b` (order 6) refers to SRKN<sub>11</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*)
+    - `RKN6a` (order 6) refers to SRKN<sub>14</sub><sup>*a*</sup> optimized for *H* = *A*(*p*) + *B*(*q*)
+- From [S. Blanes, F. Casas, A. Farrés, J. Laskar, J. Makazaga, A. Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003):
+    - `ABA104` (order (10,4)) optimized for *H* = *A* + &epsilon; *B*
+    - `ABA864` (order (8,6,4)) optimized for *H* = *A* + &epsilon; *B*
+    - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*
 
 Usage: *integrator* = SymplecticIntegrator(*name*, *step*, *order*)
 where *name* is one of the names listed above, *step* is the time step of the integrator (float), and *order* is the order of the splitting, so 1 or -1 depending on the order AB or BA of the splitting. 

@@ -7,6 +7,8 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
 - `Verlet` (order 2)
 - From [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L): 
     - `Forest-Ruth` (order 4)
+- From [Yoshida, Phys. Lett. A 150, 262 (1990)](https://doi.org/10.1016/0375-9601(90)90092-3):
+    - `Yo#`: # should be replaced by an even integer, e.g., `Yo6` for the Yoshida 6th order symplectic integrator
 - From [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4): 
     - `EFRL` (order 4) optimized for *H* = *A* + *B*; 
     - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*)
@@ -16,7 +18,7 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     - `RKN4b` (order 4) refers to SRKN<sub>6</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*); 
     - `RKN6b` (order 6) refers to SRKN<sub>11</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*)
     - `RKN6a` (order 6) refers to SRKN<sub>14</sub><sup>*a*</sup> optimized for *H* = *A*(*p*) + *B*(*q*)
-- From [S. Blanes, F. Casas, A. Farrés, J. Laskar, J. Makazaga, A. Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003):
+- From [Blanes, Casas, Farrés, Laskar, Makazaga, Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003):
     - `ABA104` (order (10,4)) optimized for *H* = *A* + &epsilon; *B*
     - `ABA864` (order (8,6,4)) optimized for *H* = *A* + &epsilon; *B*
     - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*

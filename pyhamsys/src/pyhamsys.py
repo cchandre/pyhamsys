@@ -140,9 +140,21 @@ class SymplecticIntegrator:
 		self.order = order if order in [1, -1] else 1
 		if self.name == 'Verlet':
 			alpha_s = [0.5]
-		elif self.name == 'Forest-Ruth':
-			theta = 1/(2 - 2**(1/3))
+		elif self.name == 'FR':
+			theta = 1 / (2 - 2**(1/3))
 			alpha_s = [theta / 2, theta / 2, 0.5 - theta]
+		elif self.name.startswith('Yo'):
+			try:
+				N = int(self.name[2:]) // 2
+				alpha_s = xp.asarray([0.5])
+				for n in range(1, N):
+					x1 = 1 / (2 - 2**(1/(2*n+1)))
+					x0 = 1 - 2 * x1
+					alpha_ = xp.concatenate((alpha_s, xp.flip(alpha_s)))
+					alpha_ = xp.concatenate((x1 * alpha_, x0 * alpha_s))
+					alpha_s = alpha_.copy()
+			except:
+				raise NameError(f'{self.name} integrator not defined') 
 		elif self.name.endswith('EFRL'):
 			if self.name.startswith('V'):
 				xi = 0.1644986515575760
@@ -175,6 +187,11 @@ class SymplecticIntegrator:
 			alpha_s = [0.03809449742241219, 0.05776438341466301, 0.08753433270225074, 0.116911820440748, 0.0907158752847932, 0.1263544726941979, 0.3095552309573282, -0.3269306129163933]
 		else:
 			raise NameError(f'{self.name} integrator not defined')
+		self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
+		self.alpha_s *= self.step
+		self.alpha_o = xp.tile([1, 0], len(alpha_s))
+		if self.order == -1:
+			self.alpha_o = 1 - self.alpha_o
 		self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
 		self.alpha_s *= self.step
 		self.alpha_o = xp.tile([1, 0], len(alpha_s))

@@ -6,7 +6,7 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
 
 - `Verlet` (order 2)
 - From [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L): 
-    - `Forest-Ruth` (order 4)
+    - `FR` (order 4)
 - From [Yoshida, Phys. Lett. A 150, 262 (1990)](https://doi.org/10.1016/0375-9601(90)90092-3):
     - `Yo#`: # should be replaced by an even integer, e.g., `Yo6` for the Yoshida 6th order symplectic integrator
 - From [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4): 

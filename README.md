@@ -2,9 +2,8 @@
 pyHamSys is a Python package for scientific computing involving Hamiltonian systems
 
 ## Symplectic Integrators
-pyHamSys includes a class SymplecticIntegrator containing the following integrators:
+pyHamSys includes a class SymplecticIntegrator containing the following symplectic splitting integrators:
 
-Names of integrators include:
 - `Verlet` (order 2)
 - From [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L): 
     - `Forest-Ruth` (order 4)

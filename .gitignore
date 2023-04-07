@@ -2,5 +2,6 @@
 *.whl
 *.pyc
 /dist/
+/build/
 /*.egg-info
 /pyhamsys/src/pyhamsys.egg-info/

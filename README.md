@@ -1,5 +1,5 @@
 # pyHamSys
-pyHamSys is a Python package for scientific computations involving Hamiltonian systems
+pyHamSys is a Python package for scientific computing involving Hamiltonian systems
 
 ## Symplectic Integrators
 pyHamSys includes a class SymplecticIntegrator containing the following integrators:

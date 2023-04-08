@@ -143,7 +143,10 @@ class SymplecticIntegrator:
 		elif self.name == 'FR':
 			theta = 1 / (2 - 2**(1/3))
 			alpha_s = [theta / 2, theta / 2, 0.5 - theta]
-		elif self.name.startswith('Yo'):
+		elif self.name == 'Yos6':
+			a = [0.784513610477560, 0.235573213359357, -1.17767998417887, 1.31518632068390]
+			alpha_s = [a[0]/2,  a[0]/2, a[1]/2, a[1]/2, a[2]/2, a[2]/2, a[3]/2]
+		elif self.name[:2] == 'Yo':
 			try:
 				N = int(self.name[2:]) // 2
 				alpha_s = xp.asarray([0.5])

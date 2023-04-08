@@ -9,7 +9,7 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     - `FR` (order 4)
 - From [Yoshida, Phys. Lett. A 150, 262 (1990)](https://doi.org/10.1016/0375-9601(90)90092-3):
     - `Yo#`: # should be replaced by an even integer, e.g., `Yo6` for 6th order symplectic integrator
-    - `Yos6`: 6th order symplectic integrator (solution A from Table 1)
+    - `Yos6`: optimized 6th order symplectic integrator (solution A from Table 1)
 - From [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4): 
     - `EFRL` (order 4) optimized for *H* = *A* + *B*; 
     - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*)

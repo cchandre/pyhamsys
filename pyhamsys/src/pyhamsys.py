@@ -172,6 +172,8 @@ class SymplecticIntegrator:
 				lam = -0.09156203075515678
 				chi = -0.1616217622107222
 			alpha_s = [xi, 0.5 - lam - xi, lam + xi + chi -0.5, 0.5 - chi - xi]
+		elif self.name == 'ML4':
+			alpha_s = [(14-xp.sqrt(19))/108, (146+5*xp.sqrt(19))/540, (-23-20*xp.sqrt(19))/270, (-2+10*xp.sqrt(19))/135, 1/5]
 		elif self.name == 'BM4':
 			alpha_s = [0.0792036964311957, 0.1303114101821663, 0.2228614958676077, -0.3667132690474257, 0.3246481886897062, 0.1096884778767498]
 		elif self.name == 'BM6':

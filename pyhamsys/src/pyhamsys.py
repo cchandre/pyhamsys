@@ -115,8 +115,6 @@ class SymplecticIntegrator:
         the name of the symplectic integrator
     step : float
         the time step for the integrator
-    order (default 1) : 1 or -1
-        1 for ABA, -1 for BAB 
 
     Methods
     -------
@@ -129,15 +127,14 @@ class SymplecticIntegrator:
 		specified in times.
     """
 	def __repr__(self) -> str:
-		return f'{self.__class__.__name__}({self.name}, {self.step}, order={self.order})'
+		return f'{self.__class__.__name__}({self.name}, {self.step})'
 	
 	def __str__(self) -> str:
 		return f'{self.name}'
 
-	def __init__(self, name:str, step:float, order:int=1) -> None:
+	def __init__(self, name:str, step:float) -> None:
 		self.name = name
 		self.step = step
-		self.order = order if order in [1, -1] else 1
 		if self.name == 'Verlet':
 			alpha_s = [0.5]
 		elif self.name == 'FR':
@@ -172,7 +169,11 @@ class SymplecticIntegrator:
 				lam = -0.09156203075515678
 				chi = -0.1616217622107222
 			alpha_s = [xi, 0.5 - lam - xi, lam + xi + chi -0.5, 0.5 - chi - xi]
-		elif self.name == 'ML4':
+		elif self.name == 'M2':
+			y = (2*xp.sqrt(326)-36)**(1/3)
+			z = (y**2 + 6 * y -2) / (12 * y)
+			alpha_s = [z, 0.5 - z]
+		elif self.name == 'M4':
 			alpha_s = [(14-xp.sqrt(19))/108, (146+5*xp.sqrt(19))/540, (-23-20*xp.sqrt(19))/270, (-2+10*xp.sqrt(19))/135, 1/5]
 		elif self.name == 'BM4':
 			alpha_s = [0.0792036964311957, 0.1303114101821663, 0.2228614958676077, -0.3667132690474257, 0.3246481886897062, 0.1096884778767498]
@@ -195,13 +196,9 @@ class SymplecticIntegrator:
 		self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
 		self.alpha_s *= self.step
 		self.alpha_o = xp.tile([1, 0], len(alpha_s))
-		if self.order == -1:
-			self.alpha_o = 1 - self.alpha_o
 		self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
 		self.alpha_s *= self.step
 		self.alpha_o = xp.tile([1, 0], len(alpha_s))
-		if self.order == -1:
-			self.alpha_o = 1 - self.alpha_o
 	
 	def _integrate(self, chi:Callable, chi_star:Callable, y):
 		for h, st in zip(self.alpha_s, self.alpha_o):

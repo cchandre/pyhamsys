@@ -4,7 +4,7 @@ pyHamSys is a Python package for scientific computing involving Hamiltonian syst
 ## Symplectic Integrators
 pyHamSys includes a class SymplecticIntegrator containing the following symplectic splitting integrators:
 
-- `Verlet` (order 2, all purpose)
+- `Verlet` (order 2, all purpose), also referred to as Strang splitting
 - From [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L): 
     - `FR` (order 4, all purpose)
 - From [Yoshida, Phys. Lett. A 150, 262 (1990)](https://doi.org/10.1016/0375-9601(90)90092-3):

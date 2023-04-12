@@ -11,8 +11,8 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     - `Yo#`: # should be replaced by an even integer, e.g., `Yo6` for 6th order symplectic integrator (all purpose)
     - `Yos6`: (order 6, all purpose) optimized symplectic integrator (solution A from Table 1)
 - From [McLachlan, SIAM J. Sci. Comp. 16, 151 (1995)]:
-    - M2 
-- From [McLachlan, SIAM J. Sci. Comp. 16, 151 (1995)]:
+    - `M2` (order 2, all purpose)
+    - `M4` (order 4, all purpose)
 - From [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4): 
     - `EFRL` (order 4) optimized for *H* = *A* + *B*
     - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*). For `PEFRL`, *chi* should be exp(B)exp(A). For `VEFRL`, *chi* should be exp(A)exp(B).

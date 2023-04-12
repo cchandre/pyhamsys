@@ -54,7 +54,7 @@ Returns:
    - If *times* is a list or array with a single element, returns the times and values of *y* or *x* at all computed times. 
 
 References:
-  - Hairer, Lubich, 2003, *Geometric-Preseving Algorithms for Ordinary Differential Equations* (Springer)
+  - Hairer, Lubich, Wanner, 2003, *Geometric-Preseving Algorithms for Ordinary Differential Equations* (Springer)
   - McLachlan, 2022, *Tuning symplectic integrators is easy and worthwhile*, [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)
 
 

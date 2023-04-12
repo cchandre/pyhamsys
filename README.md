@@ -4,6 +4,11 @@ pyHamSys is a Python package for scientific computing involving Hamiltonian syst
 ![PyPI](https://img.shields.io/pypi/v/pyhamsys)
 ![License](https://img.shields.io/badge/license-BSD-lightgray)
 
+Installation: 
+```
+pip install pyhamsys
+```
+
 ## Symplectic Integrators
 pyHamSys includes a class SymplecticIntegrator containing the following symplectic splitting integrators:
 
@@ -59,9 +64,3 @@ Returns:
 References:
   - Hairer, Lubich, Wanner, 2003, *Geometric-Preseving Algorithms for Ordinary Differential Equations* (Springer)
   - McLachlan, 2022, *Tuning symplectic integrators is easy and worthwhile*, [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)
-
-
-Installation: 
-```
-pip install pyhamsys
-```

@@ -11,18 +11,20 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     - `Yo#`: # should be replaced by an even integer, e.g., `Yo6` for 6th order symplectic integrator (all purpose)
     - `Yos6`: (order 6, all purpose) optimized symplectic integrator (solution A from Table 1)
 - From [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4): 
-    - `EFRL` (order 4) optimized for *H* = *A* + *B*; 
-    - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*)
+    - `EFRL` (order 4) optimized for *H* = *A* + *B*
+    - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*). For `PEFRL`, *chi* should be exp(B)exp(A). For `VEFRL`, *chi* should be exp(A)exp(B).
 - From [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7):
     - `BM4` (order 4, all purpose) refers to S<sub>6</sub> 
     - `BM6` (order 6, all purpose) refers to S<sub>10</sub>
-    - `RKN4b` (order 4) refers to SRKN<sub>6</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*)
-    - `RKN6b` (order 6) refers to SRKN<sub>11</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*)
-    - `RKN6a` (order 6) refers to SRKN<sub>14</sub><sup>*a*</sup> optimized for *H* = *A*(*p*) + *B*(*q*)
+    - `RKN4b` (order 4) refers to SRKN<sub>6</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(A)exp(B).
+    - `RKN6b` (order 6) refers to SRKN<sub>11</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(A)exp(B).
+    - `RKN6a` (order 6) refers to SRKN<sub>14</sub><sup>*a*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(B)exp(A).
 - From [Blanes, Casas, Farrés, Laskar, Makazaga, Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003):
-    - `ABA104` (order (10,4)) optimized for *H* = *A* + &epsilon; *B*
-    - `ABA864` (order (8,6,4)) optimized for *H* = *A* + &epsilon; *B*
-    - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*
+    - `ABA104` (order (10,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(B)exp(A).
+    - `ABA864` (order (8,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(B)exp(A).
+    - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(B)exp(A).
+    
+All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *X*<sub>*k*</sub> in any order of the functions *X*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator.
 
 Usage: *integrator* = SymplecticIntegrator(*name*, *step*)
 where *name* is one of the names listed above and *step* is the time step of the integrator (float). 
@@ -32,9 +34,9 @@ The function *integrator*.`_integrate` integrates the Hamiltonian flow by one st
 The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the float, list or array *times*.
 
 Parameters:
-  - chi : function of (*h*, *y*), y being the state vector.
-    Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*.
-  - chi_star : function of (*h*, *y*).
+  - *chi* : function of (*h*, *y*), y being the state vector.
+    Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. 
+  - *chi_star* : function of (*h*, *y*).
     Function returning exp(*h* X<sub>1</sub>)...exp(*h* X_<sub>*n*</sub>) *y*.
   - *y* : initial state vector (numpy array)
   - *times* : times at which the values of the state vector are computed

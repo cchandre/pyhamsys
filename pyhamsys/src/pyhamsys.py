@@ -191,15 +191,19 @@ class SymplecticIntegrator:
 			alpha_s = [0.07113342649822312, 0.1119502609739741, 0.129203166982666, 0.1815796929159088, 0.3398320688569059, -0.3663966873688647, 0.03269807114118675]
 		elif self.name == 'ABA1064':
 			alpha_s = [0.03809449742241219, 0.05776438341466301, 0.08753433270225074, 0.116911820440748, 0.0907158752847932, 0.1263544726941979, 0.3095552309573282, -0.3269306129163933]
-		else:
+		elif self.name != 'Simple':
 			raise NameError(f'{self.name} integrator not defined')
-		self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
-		self.alpha_s *= self.step
-		self.alpha_o = xp.tile([1, 0], len(alpha_s))
-		self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
-		self.alpha_s *= self.step
-		self.alpha_o = xp.tile([1, 0], len(alpha_s))
-	
+		if self.name == 'Simple':
+			self.alpha_s = [self.step]
+			self.alpha_o = [1]
+		else:
+			self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
+			self.alpha_s *= self.step
+			self.alpha_o = xp.tile([1, 0], len(alpha_s))
+			self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
+			self.alpha_s *= self.step
+			self.alpha_o = xp.tile([1, 0], len(alpha_s))
+
 	def _integrate(self, chi:Callable, chi_star:Callable, y):
 		for h, st in zip(self.alpha_s, self.alpha_o):
 			y = chi(h, y) if st==0 else chi_star(h, y)

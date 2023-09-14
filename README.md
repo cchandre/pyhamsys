@@ -23,19 +23,19 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     - `M4` (order 4, all purpose)
 - From [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4): 
     - `EFRL` (order 4) optimized for *H* = *A* + *B*
-    - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*). For `PEFRL`, *chi* should be exp(*h* A)exp(*h*B). For `VEFRL`, *chi* should be exp(*h*B)exp(*h*A).
+    - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*). For `PEFRL`, *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>). For `VEFRL`, *chi* should be exp(*h* X<sub>B</sub>)exp(*h* X<sub>A</sub>).
 - From [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7):
     - `BM4` (order 4, all purpose) refers to S<sub>6</sub> 
     - `BM6` (order 6, all purpose) refers to S<sub>10</sub>
-    - `RKN4b` (order 4) refers to SRKN<sub>6</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(*h*B)exp(*h*A).
-    - `RKN6b` (order 6) refers to SRKN<sub>11</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(*h*B)exp(*h*A).
-    - `RKN6a` (order 6) refers to SRKN<sub>14</sub><sup>*a*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(*h*A)exp(*h*B).
+    - `RKN4b` (order 4) refers to SRKN<sub>6</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(*h* X<sub>B</sub>)exp(*h* X<sub>A</sub>).
+    - `RKN6b` (order 6) refers to SRKN<sub>11</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(*h* X<sub>B</sub>)exp(*h* X<sub>A</sub>).
+    - `RKN6a` (order 6) refers to SRKN<sub>14</sub><sup>*a*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
 - From [Blanes, Casas, Farrés, Laskar, Makazaga, Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003):
-    - `ABA104` (order (10,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h*A)exp(*h*B).
-    - `ABA864` (order (8,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h*A)exp(*h*B).
-    - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h*A)exp(*h*B).
+    - `ABA104` (order (10,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
+    - `ABA864` (order (8,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
+    - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
     
-All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *X*<sub>*k*</sub> in any order of the functions *X*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator.
+All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator.
 
 Usage: *integrator* = SymplecticIntegrator(*name*, *step*)
 where *name* is one of the names listed above and *step* is the time step of the integrator (float). 
@@ -46,7 +46,7 @@ The function *integrator*.`integrate` integrates the Hamiltonian flow from the i
 
 Parameters:
   - *chi* : function of (*h*, *y*), y being the state vector.
-    Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *X*<sub>*k*</sub>, i.e., X<sub>*k*</sub> = {*X*<sub>*k*</sub>, &centerdot;}.
+    Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *A*<sub>*k*</sub>, i.e., X<sub>*k*</sub> = {*A*<sub>*k*</sub>, &centerdot;}.
   - *chi_star* : function of (*h*, *y*).
     Function returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y*.
   - *y* : initial state vector (numpy array)

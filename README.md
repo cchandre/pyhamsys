@@ -23,7 +23,7 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     - `M4` (order 4, all purpose)
 - From [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4): 
     - `EFRL` (order 4) optimized for *H* = *A* + *B*
-    - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*). For `PEFRL`, *chi* should be exp(*h*A)exp(*h*B). For `VEFRL`, *chi* should be exp(*h*B)exp(*h*A).
+    - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*). For `PEFRL`, *chi* should be exp(*h* A)exp(*h*B). For `VEFRL`, *chi* should be exp(*h*B)exp(*h*A).
 - From [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7):
     - `BM4` (order 4, all purpose) refers to S<sub>6</sub> 
     - `BM6` (order 6, all purpose) refers to S<sub>10</sub>

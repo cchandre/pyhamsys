@@ -57,7 +57,7 @@ Parameters:
     If autonomous is False, the state vector y should be of the form *y* = [*t*, *x*], where the first coordinate is time. 
 
 Returns:
-   - If *times* is a float of integer, the output is a tuple (*t*, *y* or *x*) where *y* is the value of the state vector and *y* = [*t*, *x*] if autonomous is False.
+   - If *times* is a float or integer, the output is a tuple (*t*, *y* or *x*) where *y* is the value of the state vector and *y* = [*t*, *x*] if autonomous is False.
    - If *times* is a list or array, returns the times and values of *y* or *x* at *times*. 
    - If *times* is a list or array with a single element, returns the times and values of *y* or *x* at all computed times. 
 

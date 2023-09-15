@@ -45,7 +45,7 @@ The function *integrator*.`_integrate` integrates the Hamiltonian flow by one st
 The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the float, list or array *times*.
 
 Parameters:
-  - *chi* : function of (*h*, *y*), y being the state vector.
+  - *chi* : function of (*h*, *y*), *y* being the state vector.
     Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *A*<sub>*k*</sub>, i.e., X<sub>*k*</sub> = {*A*<sub>*k*</sub>, &centerdot;}.
   - *chi_star* : function of (*h*, *y*).
     Function returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y*.

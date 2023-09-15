@@ -57,9 +57,11 @@ Parameters:
     If autonomous is False, the state vector y should be of the form *y* = [*t*, *x*], where the first coordinate is time. 
 
 Returns:
-   - If *times* is a float or integer, the output is a tuple (*t*, *y* or *x*) where *y* is the value of the state vector and *y* = [*t*, *x*] if autonomous is False.
-   - If *times* is a list or array, returns the times and values of *y* or *x* at *times*. 
-   - If *times* is a list or array with a single element, returns the times and values of *y* or *x* at all computed times. 
+   Bunch object with the following fields defined:
+   - t : final integration time if *times* is a float of integer
+         *times* if *times* is a list or an array
+         all computed times if *times* is a list or array with a single element
+   - y : state vector at times t; if autonomous is False, the state vector is [t, x]
 
 References:
   - Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)

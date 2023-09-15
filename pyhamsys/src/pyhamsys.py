@@ -113,7 +113,7 @@ class OdeSolution(OptimizeResult):
 class SymplecticIntegrator:
 	"""
     Some symplectic splitting integrators in Python
-    .. version:: 0.1.0
+    .. version:: 0.1.1
 
     Attributes
     ----------
@@ -223,7 +223,7 @@ class SymplecticIntegrator:
 		by the initial state vector y using one of the selected symplectic 
 		splitting integrators.
 		Returns the value of y at times defines by the float, list or array times.
-		.. versionadded:: 0.1.0
+		.. versionadded:: 0.1.1
 
 		Parameters
 		----------
@@ -231,12 +231,12 @@ class SymplecticIntegrator:
 			function returning exp(h X_n)...exp(h X_1) y.
 		chi_star : function of (h, y)
 			function returning exp(h X_1)...exp(h X_n) y.
-		times : 
+		y : initial state vector (numpy array)
+		times : times at which the values of the state vector are computed
 		command : function of (t, y) 
 			function to be run at each time step. 
 		autonomous : boolean
-			if autonomous is False, the state vector y should be of the form 
-			y = [t, x]. 
+			if False, the state vector y should be of the form y = [t, x]. 
 
 		Returns
 		-------
@@ -244,17 +244,13 @@ class SymplecticIntegrator:
 		t : final integration time if 'times' is a float of integer
 		    'times' if 'times' is a list or an array
 			all computed times if 'times' is a list or array with a single element
-		y : state vector at times t
-		    if autonomous is False, the state vector is [t, x]
-		out : array of times, and values of y at times
-			If times is a float of integer, the output is a tuple (t, y or x) where
-			y is the value of the state vector and y = [t, x] if autonomous is False.
-			If times is a list or array, returns the times and values of y or x at 
-			times. If times is a list or array with a single element, returns the 
-			times and values of y or x at all computed times. 
+		y : state vector at times t; if autonomous is False, the state vector is [t, x] 
 
 		References
 		----------
+			Hairer, Lubich, Wanner, 2003, Geometric Numerical Integration: 
+			Structure-Preserving Algorithms for Ordinary Differential Equations
+			(Springer)
 			McLachlan, R.I, 2022, "Tuning symplectic integrators is easy and 
 			worthwhile", *arxiv:2104.10269*.
 		"""

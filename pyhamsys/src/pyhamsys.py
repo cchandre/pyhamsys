@@ -29,6 +29,7 @@ import numpy as xp
 from scipy.fft import rfft, irfft, rfftfreq
 from scipy.interpolate import interp1d
 from typing import Callable, Tuple, Union
+from scipy.optimize import OptimizeResult
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)
@@ -103,6 +104,11 @@ def field_envelope(t:float, te_au:xp.ndarray, envelope:str='sinus') -> float:
         return xp.where(t<=0, 0, xp.where(t<=te[0], t / te[0], xp.where(t<=te[1], 1, xp.where(t<=te[2], (te[2] - t) / te_au[2], 0))))
     else:
 	    raise NameError(f'{envelope} envelope not defined')
+	
+METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL', 'PEFRL', 'VEFRL', 'BM4', 'BM6', 'RKN4b', 'RKN6b', 'RKN6a', 'ABA104', 'ABA864', 'ABA1064']
+
+class OdeSolution(OptimizeResult):
+    pass
 
 class SymplecticIntegrator:
 	"""
@@ -133,6 +139,8 @@ class SymplecticIntegrator:
 		return f'{self.name}'
 
 	def __init__(self, name:str, step:float) -> None:
+		if (name not in METHODS) and (name[:2] != 'Yo'):
+			raise ValueError(f"The chosen integrator must be one of {METHODS}.")
 		self.name = name
 		self.step = step
 		if self.name == 'Verlet':
@@ -223,6 +231,7 @@ class SymplecticIntegrator:
 			function returning exp(h X_n)...exp(h X_1) y.
 		chi_star : function of (h, y)
 			function returning exp(h X_1)...exp(h X_n) y.
+		times : 
 		command : function of (t, y) 
 			function to be run at each time step. 
 		autonomous : boolean
@@ -231,6 +240,12 @@ class SymplecticIntegrator:
 
 		Returns
 		-------
+		Bunch object with the following fields defined:
+		t : final integration time if 'times' is a float of integer
+		    'times' if 'times' is a list or an array
+			all computed times if 'times' is a list or array with a single element
+		y : state vector at times t
+		    if autonomous is False, the state vector is [t, x]
 		out : array of times, and values of y at times
 			If times is a float of integer, the output is a tuple (t, y or x) where
 			y is the value of the state vector and y = [t, x] if autonomous is False.
@@ -257,9 +272,9 @@ class SymplecticIntegrator:
 				command(t, y_)
 		t_vec = xp.asarray(t_vec)
 		if isinstance(times, (int, float)):
-			return t, y_ if autonomous else y_[1]
+			return OdeSolution(t=t, y=y_ if autonomous else y_[1])
 		elif len(times) == 1:
-			return t_vec, y_vec
+			return OdeSolution(t=t_vec, y=y_vec)
 		else:
 			times.sort()
-			return xp.asarray(times[times>=0]), interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0])
+			return OdeSolution(t=xp.asarray(times[times>=0]), y=interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0]))

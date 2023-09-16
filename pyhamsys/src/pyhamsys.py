@@ -30,6 +30,7 @@ from scipy.fft import rfft, irfft, rfftfreq
 from scipy.interpolate import interp1d
 from typing import Callable, Tuple, Union
 from scipy.optimize import OptimizeResult
+import warnings
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)
@@ -257,6 +258,12 @@ class SymplecticIntegrator:
 		t, y_ = 0, y.copy()
 		t_vec, y_vec = [0], y_.copy()[..., xp.newaxis] if autonomous else y_[1][..., xp.newaxis]
 		times = xp.asarray(times) if isinstance(times, list) else times
+		evenly_spaced = True if isinstance(times, xp.ndarray) and xp.allclose(xp.diff(times)-xp.diff(times)[0], 0, rtol=1e-12, atol=1e-12) else False
+		if evenly_spaced:
+			timestep = ((times[1] - times[0])) / xp.floor((times[1] - times[0]) / self.step)
+			if xp.abs(timestep - self.step) >= 1e-12:
+				warnings.warn(f"The time step is redefined: old ({self.step}) -> new ({timestep})")
+			self.step = timestep
 		while t < (times if isinstance(times, (int, float)) else times.max()):
 			y_ = self._integrate(chi, chi_star, y_)
 			t += self.step
@@ -272,5 +279,6 @@ class SymplecticIntegrator:
 		elif len(times) == 1:
 			return OdeSolution(t=t_vec, y=y_vec)
 		else:
-			times.sort()
+			if evenly_spaced:
+				return OdeSolution(t=times, y=y_vec[::xp.floor((times[1] - times[0]) / self.step)])
 			return OdeSolution(t=xp.asarray(times[times>=0]), y=interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0]))

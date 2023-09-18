@@ -53,15 +53,16 @@ Parameters:
   - *times* : times at which the values of the state vector are computed
   - *command* : function of (*t*, *y*).
     Function to be run at each time step (e.g., plotting an observable associated with the state vector, or register specific events). 
-  - *autonomous* : boolean.
-    If autonomous is False, the state vector y should be of the form *y* = [*t*, *x*], where the first coordinate is time. 
+
+Remark:  
+    - If the vector field has some explicit time-dependence, it should be first autonomized by adding time as an extra variable
 
 Returns:  
 &nbsp; Bunch object with the following fields defined:
    - t : final integration time if *times* is a float of integer
          *times* if *times* is a list or an array
          all computed times if *times* is a list or array with a single element
-   - y : state vector at times t; if autonomous is False, the state vector is [t, x]
+   - y : state vector at times t
 
 References:
   - Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)

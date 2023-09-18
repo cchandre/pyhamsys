@@ -59,9 +59,9 @@ Remark:
 
 Returns:  
 &nbsp; Bunch object with the following fields defined:
-   - t : final integration time if *times* is a float of integer
-         *times* if *times* is a list or an array
-         all computed times if *times* is a list or array with a single element
+   - t : final integration time if *times* is a float or integer  
+         &nbsp; *times* if *times* is a list or a numpy array  
+         &nbsp; all computed times if *times* is a list or numpy array with a single element
    - y : state vector at times t
 
 References:

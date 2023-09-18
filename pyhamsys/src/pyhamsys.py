@@ -213,18 +213,18 @@ class SymplecticIntegrator:
 			self.alpha_s *= self.step
 			self.alpha_o = xp.tile([1, 0], len(alpha_s))
 
-	def _integrate(self, chi:Callable, chi_star:Callable, y):
+	def _integrate(self, chi:Callable, chi_star:Callable, y) -> xp.ndarray:
 		for h, st in zip(self.alpha_s, self.alpha_o):
 			y = chi(h, y) if st==0 else chi_star(h, y)
 		return y
 	
-	def integrate(self, chi:Callable, chi_star:Callable, y:xp.ndarray, times:Union[int, float, list, xp.ndarray], command:Callable=None, autonomous:bool=True) -> Tuple[Union[float, xp.ndarray], xp.ndarray]:
+	def integrate(self, chi:Callable, chi_star:Callable, y:xp.ndarray, times:Union[int, float, list, xp.ndarray], command:Callable=None) -> Tuple[Union[float, xp.ndarray], xp.ndarray]:
 		"""
-		Integrate the Hamiltonian flow from the initial conditions specified 
-		by the initial state vector y using one of the selected symplectic 
-		splitting integrators.
+		Integrate the (autonomous) Hamiltonian flow from the initial conditions 
+		specified by the initial state vector y using one of the selected 
+		symplectic splitting integrators.
 		Returns the value of y at times defines by the float, list or array times.
-		.. versionadded:: 0.1.1
+		.. versionadded:: 0.1.2
 
 		Parameters
 		----------
@@ -235,17 +235,15 @@ class SymplecticIntegrator:
 		y : initial state vector (numpy array)
 		times : times at which the values of the state vector are computed
 		command : function of (t, y) 
-			function to be run at each time step. 
-		autonomous : boolean
-			if False, the state vector y should be of the form y = [t, x]. 
+			function to be run at each time step.  
 
 		Returns
 		-------
 		Bunch object with the following fields defined:
-		t : final integration time if 'times' is a float of integer
-		    'times' if 'times' is a list or an array
+		t : final integration time if 'times' is a float or integer;
+		    'times' if 'times' is a list or an array;
 			all computed times if 'times' is a list or array with a single element
-		y : state vector at times t; if autonomous is False, the state vector is [t, x] 
+		y : state vector at times t
 
 		References
 		----------
@@ -253,10 +251,10 @@ class SymplecticIntegrator:
 			Structure-Preserving Algorithms for Ordinary Differential Equations
 			(Springer)
 			McLachlan, R.I, 2022, "Tuning symplectic integrators is easy and 
-			worthwhile", *arxiv:2104.10269*.
+			worthwhile", Commun. Comput. Phys. 31, 987 (2022)
 		"""
 		t, y_ = 0, y.copy()
-		t_vec, y_vec = [0], y_.copy()[..., xp.newaxis] if autonomous else y_[1][..., xp.newaxis]
+		t_vec, y_vec = [0], y_.copy()[..., xp.newaxis]
 		times = xp.asarray(times) if isinstance(times, list) else times
 		evenly_spaced = True if isinstance(times, xp.ndarray) and xp.allclose(xp.diff(times)-xp.diff(times)[0], 0, rtol=1e-12, atol=1e-12) else False
 		if evenly_spaced:
@@ -269,16 +267,16 @@ class SymplecticIntegrator:
 			t += self.step
 			if not isinstance(times, (int, float)):
 				t_vec.append(t)
-				yt = y_[..., xp.newaxis] if autonomous else y_[1][..., xp.newaxis]
+				yt = y_[..., xp.newaxis]
 				y_vec = xp.concatenate((y_vec, yt), axis=-1)
 			if command is not None:
 				command(t, y_)
 		t_vec = xp.asarray(t_vec)
 		if isinstance(times, (int, float)):
-			return OdeSolution(t=t, y=y_ if autonomous else y_[1])
+			return OdeSolution(t=t, y=y_, time_step=timestep)
 		elif len(times) == 1:
-			return OdeSolution(t=t_vec, y=y_vec)
+			return OdeSolution(t=t_vec, y=y_vec, time_step=timestep)
 		else:
 			if evenly_spaced:
-				return OdeSolution(t=times, y=y_vec[::xp.floor((times[1] - times[0]) / self.step)])
-			return OdeSolution(t=xp.asarray(times[times>=0]), y=interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0]))
+				return OdeSolution(t=times, y=y_vec[::xp.floor((times[1] - times[0]) / self.step)], time_step=timestep)
+			return OdeSolution(t=xp.asarray(times[times>=0]), y=interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0]), time_step=timestep)

@@ -40,13 +40,13 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 Usage: *integrator* = SymplecticIntegrator(*name*, *step*)
 where *name* is one of the names listed above and *step* is the time step of the integrator (float). 
 
-The function *integrator*.`_integrate` integrates the Hamiltonian flow by one step.
+The function *integrator*.`_integrate` integrates the Hamiltonian flow by one time step.
 
-The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the float, list or array *times*.
+The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the float, list or numpy array *times*.
 
 Parameters:  
   - *chi* : function of (*h*, *y*), *y* being the state vector.
-    Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *A*<sub>*k*</sub>, i.e., X<sub>*k*</sub> = {*A*<sub>*k*</sub>, &centerdot;}.
+    Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *A*<sub>*k*</sub>, i.e., for Hamiltonian flows X<sub>*k*</sub> = {*A*<sub>*k*</sub>, &centerdot;} where {&centerdot; , &centerdot;} is the Poisson bracket.
   - *chi_star* : function of (*h*, *y*).
     Function returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y*.
   - *y* : initial state vector (numpy array)

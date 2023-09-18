@@ -274,10 +274,10 @@ class SymplecticIntegrator:
 				command(t, y_)
 		t_vec = xp.asarray(t_vec)
 		if isinstance(times, (int, float)):
-			return OdeSolution(t=t, y=y_, time_step=timestep)
+			return OdeSolution(t=t, y=y_, time_step=self.step)
 		elif len(times) == 1:
-			return OdeSolution(t=t_vec, y=y_vec, time_step=timestep)
+			return OdeSolution(t=t_vec, y=y_vec, time_step=self.step)
 		else:
 			if evenly_spaced:
-				return OdeSolution(t=times, y=y_vec[::int(xp.floor((times[1] - times[0]) / timestep))], time_step=timestep)
-			return OdeSolution(t=xp.asarray(times[times>=0]), y=interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0]), time_step=timestep)
+				return OdeSolution(t=times, y=y_vec[..., ::int(xp.floor((times[1] - times[0]) / self.step))], time_step=self.step)
+			return OdeSolution(t=xp.asarray(times[times>=0]), y=interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0]), time_step=self.step)

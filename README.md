@@ -46,7 +46,7 @@ The function *integrator*.`integrate` integrates the Hamiltonian flow from the i
 
 Parameters:  
   - *chi* : function of (*h*, *y*), *y* being the state vector.
-    Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *A*<sub>*k*</sub>, i.e., for Hamiltonian flows X<sub>*k*</sub> = {*A*<sub>*k*</sub>, &centerdot;} where {&centerdot; , &centerdot;} is the Poisson bracket.
+    Function returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *A*<sub>*k*</sub>, i.e., for Hamiltonian flows X<sub>*k*</sub> = {*A*<sub>*k*</sub> , &centerdot;} where {&centerdot; , &centerdot;} is the Poisson bracket.
   - *chi_star* : function of (*h*, *y*).
     Function returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y*.
   - *y* : initial state vector (numpy array)
@@ -65,6 +65,7 @@ Returns:
          &nbsp; *times* if *times* is a list or a numpy array  
          &nbsp; all computed times if *times* is a list or numpy array with a single element
    - y : state vector at times t
+   - time_step : time step used in the computation
 
 References:
   - Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)

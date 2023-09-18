@@ -54,8 +54,10 @@ Parameters:
   - *command* : function of (*t*, *y*).
     Function to be run at each time step (e.g., plotting an observable associated with the state vector, or register specific events). 
 
-Remark:  
+Remarks:  
     - If the vector field has some explicit time-dependence, it should be first autonomized by adding time as an extra variable
+    - If *times* is linearly spaced, the time step is readjusted so that the output times contain the values in *times*
+    - If *times* is not linearly spaced, a linear interpolation of the solution is performed, and the accuracy of the integrator might be lost 
 
 Returns:  
 &nbsp; Bunch object with the following fields defined:

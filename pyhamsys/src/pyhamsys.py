@@ -32,6 +32,8 @@ from typing import Callable, Tuple, Union
 from scipy.optimize import OptimizeResult
 import warnings
 
+warnings.simplefilter('once', UserWarning)
+
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)
 	div = xp.divide(1, 1j * nu, where=nu!=0)
@@ -262,7 +264,7 @@ class SymplecticIntegrator:
 		if evenly_spaced:
 			timestep = ((times[1] - times[0])) / xp.floor((times[1] - times[0]) / self.step)
 			if xp.abs(timestep - self.step) >= 1e-12:
-				warnings.warn(f"The time step is redefined: old ({self.step}) -> new ({timestep})")
+				print(f"\033[91m        The time step is redefined: old ({self.step}) -> new ({timestep}) \033[00m")
 			self.step = timestep
 		while t < (times if isinstance(times, (int, float)) else times.max()):
 			y_ = self._integrate(chi, chi_star, y_)

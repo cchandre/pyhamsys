@@ -223,7 +223,8 @@ class SymplecticIntegrator:
 		Integrate the (autonomous) Hamiltonian flow from the initial conditions 
 		specified by the initial state vector y using one of the selected 
 		symplectic splitting integrators.
-		Returns the value of y at times defines by the float, list or array times.
+		Returns the value of y at times defines by the integer, float, list 
+		or numpy array times.
 		.. versionadded:: 0.1.2
 
 		Parameters
@@ -244,6 +245,7 @@ class SymplecticIntegrator:
 		    'times' if 'times' is a list or an array;
 			all computed times if 'times' is a list or array with a single element
 		y : state vector at times t
+		time_step : time step used in the computation
 
 		References
 		----------
@@ -267,8 +269,7 @@ class SymplecticIntegrator:
 			t += self.step
 			if not isinstance(times, (int, float)):
 				t_vec.append(t)
-				yt = y_[..., xp.newaxis]
-				y_vec = xp.concatenate((y_vec, yt), axis=-1)
+				y_vec = xp.concatenate((y_vec, y_[..., xp.newaxis]), axis=-1)
 			if command is not None:
 				command(t, y_)
 		t_vec = xp.asarray(t_vec)
@@ -278,5 +279,5 @@ class SymplecticIntegrator:
 			return OdeSolution(t=t_vec, y=y_vec, time_step=timestep)
 		else:
 			if evenly_spaced:
-				return OdeSolution(t=times, y=y_vec[::xp.floor((times[1] - times[0]) / self.step)], time_step=timestep)
+				return OdeSolution(t=times, y=y_vec[::int(xp.floor((times[1] - times[0]) / timestep))], time_step=timestep)
 			return OdeSolution(t=xp.asarray(times[times>=0]), y=interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0]), time_step=timestep)

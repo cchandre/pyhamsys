@@ -205,18 +205,15 @@ class SymplecticIntegrator:
 		elif self.name != 'Simple':
 			raise NameError(f'{self.name} integrator not defined')
 		if self.name == 'Simple':
-			self.alpha_s = [self.step]
+			self.alpha_s = [1]
 			self.alpha_o = [1]
 		else:
 			self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
-			self.alpha_s *= self.step
 			self.alpha_o = xp.tile([1, 0], len(alpha_s))
-			self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
-			self.alpha_s *= self.step
-			self.alpha_o = xp.tile([1, 0], len(alpha_s))
+		self.alpha_s_ = self.alpha_s * self.step
 
 	def _integrate(self, chi:Callable, chi_star:Callable, y) -> xp.ndarray:
-		for h, st in zip(self.alpha_s, self.alpha_o):
+		for h, st in zip(self.alpha_s_, self.alpha_o):
 			y = chi(h, y) if st==0 else chi_star(h, y)
 		return y
 	
@@ -262,10 +259,11 @@ class SymplecticIntegrator:
 		times = xp.asarray(times) if isinstance(times, list) else times
 		evenly_spaced = True if isinstance(times, xp.ndarray) and xp.allclose(xp.diff(times)-xp.diff(times)[0], 0, rtol=1e-12, atol=1e-12) else False
 		if evenly_spaced:
-			timestep = ((times[1] - times[0])) / xp.floor((times[1] - times[0]) / self.step)
+			timestep = ((times[1] - times[0])) / xp.ceil((times[1] - times[0]) / self.step)
 			if xp.abs(timestep - self.step) >= 1e-12:
 				print(f"\033[91m        The time step is redefined: old ({self.step}) -> new ({timestep}) \033[00m")
 			self.step = timestep
+			self.alpha_s_ = self.alpha_s * self.step
 		while t < (times if isinstance(times, (int, float)) else times.max()):
 			y_ = self._integrate(chi, chi_star, y_)
 			t += self.step
@@ -281,5 +279,6 @@ class SymplecticIntegrator:
 			return OdeSolution(t=t_vec, y=y_vec, time_step=self.step)
 		else:
 			if evenly_spaced:
-				return OdeSolution(t=times, y=y_vec[..., ::int(xp.floor((times[1] - times[0]) / self.step))], time_step=self.step)
+				spacing = int(xp.ceil((times[1] - times[0]) / self.step))
+				return OdeSolution(t=t_vec[::spacing], y=y_vec[..., ::spacing], time_step=self.step)
 			return OdeSolution(t=xp.asarray(times[times>=0]), y=interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0]), time_step=self.step)

@@ -240,8 +240,8 @@ class SymplecticIntegrator:
 		Returns
 		-------
 		Bunch object with the following fields defined:
-		t : final integration time if 'times' is a float or integer;
-		    'times' if 'times' is a list or an array;
+		t : starting and final integration times if 'times' is a float or integer;
+		    'times' if 'times' is a list or an array (times[0] = starting time)
 			all computed times if 'times' is a list or array with a single element
 		y : state vector at times t
 		time_step : time step used in the computation
@@ -256,29 +256,36 @@ class SymplecticIntegrator:
 		"""
 		t, y_ = 0, y.copy()
 		t_vec, y_vec = [0], y_.copy()[..., xp.newaxis]
+		if not isinstance(times, (int, float, list, xp.ndarray)):
+			raise TypeError("`times` must be an integer, a float, a list of integers or floats or a numpy array")
 		times = xp.asarray(times) if isinstance(times, list) else times
-		evenly_spaced = True if isinstance(times, xp.ndarray) and xp.allclose(xp.diff(times)-xp.diff(times)[0], 0, rtol=1e-12, atol=1e-12) else False
-		if evenly_spaced:
-			timestep = ((times[1] - times[0])) / xp.ceil((times[1] - times[0]) / self.step)
+		if isinstance(times, xp.ndarray) and len(times) >= 2 and any(xp.diff(times)) <= 0:
+			raise ValueError("Values in `times` are not properly sorted.")
+		evenly_spaced = True if (isinstance(times, xp.ndarray) and len(times) >= 2 and xp.allclose(xp.diff(times)-xp.diff(times)[0], 0, rtol=1e-12, atol=1e-12)) else False
+		if evenly_spaced or isinstance(times, (int,float)):
+			timestep = ((times[1] - times[0])) / xp.ceil((times[1] - times[0]) / self.step) if evenly_spaced else times / xp.ceil(times / self.step)
 			if xp.abs(timestep - self.step) >= 1e-12:
 				print(f"\033[91m        The time step is redefined: old ({self.step}) -> new ({timestep}) \033[00m")
 			self.step = timestep
 			self.alpha_s_ = self.alpha_s * self.step
-		while t < (times if isinstance(times, (int, float)) else times.max()):
+			spacing = int(xp.ceil((times[1] - times[0]) / self.step)) if evenly_spaced else int(xp.ceil(times / self.step))
+			count, evenly_spaced = 0, True
+		while t < (times if isinstance(times, (int, float)) else times[-1]-times[0]):
 			y_ = self._integrate(chi, chi_star, y_)
 			t += self.step
-			if not isinstance(times, (int, float)):
+			if evenly_spaced:
+				count += 1
+				if count % spacing == 0:
+					count = 0
+					t_vec.append(t)
+					y_vec = xp.concatenate((y_vec, y_[..., xp.newaxis]), axis=-1)
+			else:
 				t_vec.append(t)
 				y_vec = xp.concatenate((y_vec, y_[..., xp.newaxis]), axis=-1)
 			if command is not None:
 				command(t, y_)
 		t_vec = xp.asarray(t_vec)
-		if isinstance(times, (int, float)):
-			return OdeSolution(t=t, y=y_, time_step=self.step)
-		elif len(times) == 1:
+		if evenly_spaced:
 			return OdeSolution(t=t_vec, y=y_vec, time_step=self.step)
 		else:
-			if evenly_spaced:
-				spacing = int(xp.ceil((times[1] - times[0]) / self.step))
-				return OdeSolution(t=t_vec[::spacing], y=y_vec[..., ::spacing], time_step=self.step)
-			return OdeSolution(t=xp.asarray(times[times>=0]), y=interp1d(t_vec, y_vec, assume_sorted=True)(times[times>=0]), time_step=self.step)
+			return OdeSolution(t=times, y=interp1d(t_vec, y_vec, assume_sorted=True)(times), time_step=self.step)

@@ -156,9 +156,8 @@ class SymplecticIntegrator:
 			alpha_s = [a[0]/2,  a[0]/2, a[1]/2, a[1]/2, a[2]/2, a[2]/2, a[3]/2]
 		elif self.name[:2] == 'Yo':
 			try:
-				N = int(self.name[2:]) // 2
 				alpha_s = xp.asarray([0.5])
-				for n in range(1, N):
+				for n in range(1, int(self.name[2:]) // 2):
 					x1 = 1 / (2 - 2**(1/(2*n+1)))
 					x0 = 1 - 2 * x1
 					alpha_ = xp.concatenate((alpha_s, xp.flip(alpha_s)))
@@ -168,17 +167,11 @@ class SymplecticIntegrator:
 				raise NameError(f'{self.name} integrator not defined') 
 		elif self.name.endswith('EFRL'):
 			if self.name.startswith('V'):
-				xi = 0.1644986515575760
-				lam = -0.02094333910398989
-				chi = 1.235692651138917
+				xi, lam, chi = 0.1644986515575760, -0.02094333910398989, 1.235692651138917
 			elif self.name.startswith('P'):
-				xi = 0.1786178958448091
-				lam = -0.2123418310626054
-				chi = -0.06626458266981849
+				xi, lam, chi = 0.1786178958448091, -0.2123418310626054, -0.06626458266981849
 			else:
-				xi = 0.1720865590295143
-				lam = -0.09156203075515678
-				chi = -0.1616217622107222
+				xi, lam, chi = 0.1720865590295143, -0.09156203075515678, -0.1616217622107222
 			alpha_s = [xi, 0.5 - lam - xi, lam + xi + chi -0.5, 0.5 - chi - xi]
 		elif self.name == 'M2':
 			y = (2*xp.sqrt(326)-36)**(1/3)
@@ -257,7 +250,7 @@ class SymplecticIntegrator:
 		t, y_ = 0, y.copy()
 		t_vec, y_vec = [0], y_.copy()[..., xp.newaxis]
 		if not isinstance(times, (int, float, list, xp.ndarray)):
-			raise TypeError("`times` must be an integer, a float, a list of integers or floats or a numpy array")
+			raise TypeError("`times` must be an integer, a float, a list of integers or floats, or a numpy array")
 		times = xp.asarray(times) if isinstance(times, list) else times
 		if isinstance(times, xp.ndarray) and len(times) >= 2 and any(xp.diff(times)) <= 0:
 			raise ValueError("Values in `times` are not properly sorted.")

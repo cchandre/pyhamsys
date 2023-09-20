@@ -56,7 +56,7 @@ Parameters:
 
 Remarks:  
     - If the vector field is explicitly time dependent, it should be first autonomized by adding time as an extra variable  
-    - If *times* is a linearly spaced list or array, the time step is slightly readjusted so that the output times contain the values in *times*  
+    - If *times* is a linearly spaced list or array, or if *times* is an integer or a float, the time step is slightly readjusted so that the output times contain the values in *times*  
     - If *times* is not linearly spaced, a linear interpolation of the solution is performed; the accuracy of the integrator might be lost   
 
 Returns:  

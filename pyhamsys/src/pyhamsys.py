@@ -141,11 +141,11 @@ class SymplecticIntegrator:
 	def __str__(self) -> str:
 		return f'{self.name}'
 
-	def __init__(self, name:str, step:float) -> None:
-		if (name not in METHODS) and (name[:2] != 'Yo'):
-			raise ValueError(f"The chosen integrator must be one of {METHODS}.")
-		self.name = name
+	def __init__(self, name:str, step:float, omega:float=10) -> None:
+		self.name = name.split('_')[0]
 		self.step = step
+		if (self.name not in METHODS) and (self.name[:2] != 'Yo'):
+			raise ValueError(f"The chosen integrator must be one of {METHODS}.")
 		if self.name == 'Verlet':
 			alpha_s = [0.5]
 		elif self.name == 'FR':
@@ -204,13 +204,18 @@ class SymplecticIntegrator:
 			self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
 			self.alpha_o = xp.tile([1, 0], len(alpha_s))
 		self.alpha_s_ = self.alpha_s * self.step
+		if len(name.split('_')) >= 1 and name.split('_') == 'ext':
+			self.rotation_e = lambda h: (xp.array([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]])\
+			  + xp.cos(2 * omega * h) * xp.array([[1, -1, 0, 0], [-1, 1, 0, 0], [0, 0, 1, -1], [0, 0, -1, 1]])\
+			  + xp.sin(2 * omega * h) * xp.array([[0, 0, -1, 1], [0, 0, 1, -1], [1, -1, 0, 0], [-1, 1, 0, 0]])) / 2
 
 	def _integrate(self, chi:Callable, chi_star:Callable, y) -> xp.ndarray:
+		t += h
 		for h, st in zip(self.alpha_s_, self.alpha_o):
 			y = chi(h, y) if st==0 else chi_star(h, y)
 		return y
 	
-	def integrate(self, chi:Callable, chi_star:Callable, y:xp.ndarray, times:Union[int, float, list, xp.ndarray], command:Callable=None) -> Tuple[Union[float, xp.ndarray], xp.ndarray]:
+	def integrate(self, chi:Callable, chi_star:Callable, y:xp.ndarray, times:Union[int, float, list, xp.ndarray], command:Callable=None) -> OdeSolution:
 		"""
 		Integrate the (autonomous) Hamiltonian flow from the initial conditions 
 		specified by the initial state vector y using one of the selected 
@@ -282,3 +287,35 @@ class SymplecticIntegrator:
 			return OdeSolution(t=t_vec, y=y_vec, time_step=self.step)
 		else:
 			return OdeSolution(t=times, y=interp1d(t_vec, y_vec, assume_sorted=True)(times), time_step=self.step)
+		
+	def chi_ext(self, h, t, y, derivs:Callable):
+		y_ = xp.split(y, 4)
+		dy = derivs(y_[0], y_[3], t)
+		y_[1] += h * dy[1]
+		y_[2] -= h * dy[0]
+		dy = derivs(y_[1], y_[2], t)
+		y_[0] += h * dy[1]
+		y_[3] -= h * dy[0]
+		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), y_)
+		t += h
+		return xp.concatenate([y_[_] for _ in range(4)], axis=None)
+		
+	def chi_ext_star(self, h, y, derivs:Callable):
+		y_ = xp.split(y, 4)
+		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), y_)
+		dy = derivs(y_[1], y_[2])
+		y_[0] += h * dy[1]
+		y_[3] -= h * dy[0]
+		dy = derivs(y_[0], y_[3])
+		y_[1] += h * dy[1]
+		y_[2] -= h * dy[0]
+		return xp.concatenate([y_[_] for _ in range(4)], axis=None)
+
+	def integrate_sympext(self, times:Union[int, float, list, xp.ndarray], y:xp.ndarray, derivs:Callable, command:Callable=None) -> OdeSolution:
+		chi = lambda h, y: self.chi_ext(h, y, derivs)
+		chi_star = lambda h, y: self.chi_ext_star(h, y, derivs)
+		y_ = xp.tile(y, 2)
+		sol = self.integrator(self.TimeStep).integrate(chi, chi_star, y_, times, command=command)
+		y_ = xp.split(sol.y, 4, axis=0)
+		sol.y = xp.concatenate(((y_[0] + y_[1]) / 2, (y_[2] + y_[3]) / 2), axis=0)
+		return sol

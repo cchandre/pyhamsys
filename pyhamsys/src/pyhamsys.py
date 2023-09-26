@@ -215,7 +215,7 @@ class SymplecticIntegrator:
 			y = chi(h, y) if st==0 else chi_star(h, y)
 		return y
 	
-	def integrate(self, chi:Callable, chi_star:Callable, y:xp.ndarray, times:Union[int, float, list, xp.ndarray], command:Callable=None) -> OdeSolution:
+	def integrate(self, chi:Callable, chi_star:Callable, y:xp.ndarray, t_span:tuple, t_eval:Union[int, float, list, xp.ndarray]=None, command:Callable=None) -> OdeSolution:
 		"""
 		Integrate the (autonomous) Hamiltonian flow from the initial conditions 
 		specified by the initial state vector y using one of the selected 
@@ -231,7 +231,11 @@ class SymplecticIntegrator:
 		chi_star : function of (h, y)
 			function returning exp(h X_1)...exp(h X_n) y.
 		y : initial state vector (numpy array)
-		times : times at which the values of the state vector are computed
+		t_span : tuple of floats or integers; (initial time, final time)
+		t_eval : array_like or None, optional  
+			times at which the values of the state vector are computed, must  
+			be sorted and lie within t_span. If None (default), use points  
+			selected by the solver.
 		command : function of (t, y) 
 			function to be run at each time step.  
 
@@ -252,26 +256,39 @@ class SymplecticIntegrator:
 			McLachlan, R.I, 2022, "Tuning symplectic integrators is easy and 
 			worthwhile", Commun. Comput. Phys. 31, 987 (2022)
 		"""
-		t, y_ = 0, y.copy()
-		t_vec, y_vec = [0], y_.copy()[..., xp.newaxis]
-		if not isinstance(times, (int, float, list, xp.ndarray)):
-			raise TypeError("`times` must be an integer, a float, a list of integers or floats, or a numpy array")
-		times = xp.asarray(times) if isinstance(times, list) else times
-		if isinstance(times, xp.ndarray) and len(times) >= 2 and any(xp.diff(times)) <= 0:
-			raise ValueError("Values in `times` are not properly sorted.")
-		evenly_spaced = True if (isinstance(times, xp.ndarray) and len(times) >= 2 and xp.allclose(xp.diff(times)-xp.diff(times)[0], 0, rtol=1e-12, atol=1e-12)) else False
-		if evenly_spaced or isinstance(times, (int,float)):
-			timestep = ((times[1] - times[0])) / xp.ceil((times[1] - times[0]) / self.step) if evenly_spaced else times / xp.ceil(times / self.step)
-			if xp.abs(timestep - self.step) >= 1e-12:
-				print(f"\033[91m        The time step is redefined: old ({self.step}) -> new ({timestep}) \033[00m")
-			self.step = timestep
-			self.alpha_s_ = self.alpha_s * self.step
-			spacing = int(xp.ceil((times[1] - times[0]) / self.step)) if evenly_spaced else int(xp.ceil(times / self.step))
-			count, evenly_spaced = 0, True
-		while t < (times if isinstance(times, (int, float)) else times[-1]-times[0]):
+		t0, tf = map(float, t_span)
+		if t_eval is not None:
+			t_eval = xp.asarray(t_eval)
+			if t_eval.ndim != 1:
+				raise ValueError("`t_eval` must be 1-dimensional.")
+			if xp.any(t_eval < min(t0, tf)) or xp.any(t_eval > max(t0, tf)):
+				raise ValueError("Values in `t_eval` are not within `t_span`.")
+			d = xp.diff(t_eval)
+			if tf > t0 and xp.any(d <= 0) or tf < t0 and xp.any(d >= 0):
+				raise ValueError("Values in `t_eval` are not properly sorted.")
+
+		t, y_ = t_span[0], y.copy()
+		if t_eval is None or xp.isclose(t_eval[0], t_span[0], rtol=1e-12, atol=1e-12):
+			t_vec, y_vec = [t_span[0]], y_[..., xp.newaxis] 
+		else:
+			t_vec, y_vec = [], []
+		evenly_spaced = True if (t_eval is not None and len(t_eval) >= 2 and xp.allclose(xp.diff(t_eval)-xp.diff(t_eval)[0], 0, rtol=1e-12, atol=1e-12)) else False
+		timestep = self.step
+		if evenly_spaced:
+			timestep = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / self.step)
+			spacing = int(xp.ceil((t_eval[1] - t_eval[0]) / timestep))
+		elif t_eval is None:
+			timestep = xp.abs((tf - t0)) / xp.ceil(xp.abs((tf - t0)) / self.step)
+			spacing = int(xp.ceil(xp.abs((tf - t0)) / timestep))
+		if xp.abs(timestep - self.step) >= 1e-12:
+			print(f"\033[91m        The time step is redefined: old ({self.step}) -> new ({timestep}) \033[00m")
+		self.step = timestep
+		self.alpha_s_ = self.alpha_s * self.step
+		count = 0
+		while t < t_span[-1]:
 			y_ = self._integrate(chi, chi_star, y_)
 			t += self.step
-			if evenly_spaced:
+			if evenly_spaced or t_eval is None:
 				count += 1
 				if count % spacing == 0:
 					count = 0
@@ -286,36 +303,29 @@ class SymplecticIntegrator:
 		if evenly_spaced:
 			return OdeSolution(t=t_vec, y=y_vec, time_step=self.step)
 		else:
-			return OdeSolution(t=times, y=interp1d(t_vec, y_vec, assume_sorted=True)(times), time_step=self.step)
+			return OdeSolution(t=t_eval, y=interp1d(t_vec, y_vec, assume_sorted=True)(t_eval), time_step=self.step)
 		
-	def chi_ext(self, h, t, y, derivs:Callable):
-		y_ = xp.split(y, 4)
-		dy = derivs(y_[0], y_[3], t)
-		y_[1] += h * dy[1]
-		y_[2] -= h * dy[0]
-		dy = derivs(y_[1], y_[2], t)
-		y_[0] += h * dy[1]
-		y_[3] -= h * dy[0]
-		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), y_)
+	def chi_ext(self, h, t, y, eqn:Callable):
+		y_ = xp.split(y, 2)
+		y_[0] += h * eqn(t, y_[1])
+		y_[1] += h * eqn(t, y_[0])
+		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
+		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), xp.split(y_, 4)).flatten()
+		return t + h, y_
+		
+	def chi_ext_star(self, h, t, y, eqn:Callable):
 		t += h
-		return xp.concatenate([y_[_] for _ in range(4)], axis=None)
-		
-	def chi_ext_star(self, h, y, derivs:Callable):
-		y_ = xp.split(y, 4)
-		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), y_)
-		dy = derivs(y_[1], y_[2])
-		y_[0] += h * dy[1]
-		y_[3] -= h * dy[0]
-		dy = derivs(y_[0], y_[3])
-		y_[1] += h * dy[1]
-		y_[2] -= h * dy[0]
-		return xp.concatenate([y_[_] for _ in range(4)], axis=None)
+		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), xp.split(y, 4)).flatten()
+		y_ = xp.split(y_, 2)
+		y_[1] += h * eqn(t, y_[0])
+		y_[0] += h * eqn(t, y_[1])
+		return t, xp.concatenate((y_[0], y_[1]), axis=None)
 
-	def integrate_sympext(self, times:Union[int, float, list, xp.ndarray], y:xp.ndarray, derivs:Callable, command:Callable=None) -> OdeSolution:
-		chi = lambda h, y: self.chi_ext(h, y, derivs)
-		chi_star = lambda h, y: self.chi_ext_star(h, y, derivs)
-		y_ = xp.tile(y, 2)
-		sol = self.integrator(self.TimeStep).integrate(chi, chi_star, y_, times, command=command)
-		y_ = xp.split(sol.y, 4, axis=0)
-		sol.y = xp.concatenate(((y_[0] + y_[1]) / 2, (y_[2] + y_[3]) / 2), axis=0)
+	def solve_ivp_sympext(self, eqn:Callable, tspan:tuple, y0:xp.ndarray, t_eval:Union[int, float, list, xp.ndarray], command:Callable=None) -> OdeSolution:
+		chi = lambda h, y: self.chi_ext(h, y[0], y[1], eqn)
+		chi_star = lambda h, y: self.chi_ext_star(h, y[0], y[1], eqn)
+		y_ = xp.tile(y0, 2)
+		sol = self.integrator(self.TimeStep).integrate(chi, chi_star, tspan, (tspan[0], y_), t_eval=t_eval, command=command)
+		y_ = xp.split(sol.y[1], 4, axis=0)
+		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 		return sol

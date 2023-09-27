@@ -30,6 +30,7 @@ from scipy.fft import rfft, irfft, rfftfreq
 from scipy.interpolate import interp1d
 from typing import Callable, Tuple, Union
 from scipy.optimize import OptimizeResult
+from inspect import signature
 import warnings
 
 warnings.simplefilter('once', UserWarning)
@@ -126,9 +127,10 @@ class SymplecticIntegrator:
         the time step for the integrator
 
     Methods
-    -------
-    _integrate : integrate the flow by one time step  
+    ------- 
 	integrate : integrate the flow from initial to final time 
+	solve_ivp_sympext : use an extended phase space approach to 
+	symplectic integration
     """
 	def __repr__(self) -> str:
 		return f'{self.__class__.__name__}({self.name}, {self.step})'
@@ -203,9 +205,10 @@ class SymplecticIntegrator:
 			  + xp.cos(2 * omega * h) * xp.array([[1, -1, 0, 0], [-1, 1, 0, 0], [0, 0, 1, -1], [0, 0, -1, 1]])\
 			  + xp.sin(2 * omega * h) * xp.array([[0, 0, -1, 1], [0, 0, 1, -1], [1, -1, 0, 0], [-1, 1, 0, 0]])) / 2
 
-	def _integrate(self, chi:Callable, chi_star:Callable, t:float, y:xp.ndarray):
+	def _integrate(self, chi_:Callable, chi_star_:Callable, t, y):
 		for h, st in zip(self.alpha_s_, self.alpha_o):
-			t, y = chi(h, t, y) if st==0 else chi_star(h, t, y)
+			t += h
+			y = chi_(h, t, y) if st==0 else chi_star_(h, t, y)
 		return t, y
 	
 	def integrate(self, chi:Callable, chi_star:Callable, y:xp.ndarray, t_span:tuple, t_eval:Union[int, float, list, xp.ndarray]=None, command:Callable=None) -> OdeSolution:
@@ -219,9 +222,9 @@ class SymplecticIntegrator:
 
 		Parameters
 		----------
-		chi : function of (h, t, y), y being the state vector
+		chi : function of (h, t, y) or (h, y), y being the state vector
 			function returning exp(h X_n)...exp(h X_1) y.
-		chi_star : function of (h, t, y)
+		chi_star : function of (h, t, y) or (h, y)
 			function returning exp(h X_1)...exp(h X_n) y.
 		y : initial state vector (numpy array)
 		t_span : tuple of floats or integers; (initial time, final time)
@@ -230,7 +233,7 @@ class SymplecticIntegrator:
 			be sorted and lie within t_span. If None (default), use points  
 			selected by the solver.
 		command : function of (t, y) 
-			function to be run at each time step.  
+			function to be run at each time step.   
 
 		Returns
 		-------
@@ -249,6 +252,12 @@ class SymplecticIntegrator:
 			McLachlan, R.I, 2022, "Tuning symplectic integrators is easy and 
 			worthwhile", Commun. Comput. Phys. 31, 987 (2022)
 		"""
+		number_vars = len(signature(chi).parameters) - 1
+		if number_vars==2:
+			chi_, chi_star_  = chi, chi_star
+		elif number_vars==1:
+			chi_ = lambda h, t, y: chi(h, y)
+			chi_star_ = lambda h, t, y: chi_star(h, y)
 		t, y_ = t_span[0], y.copy()
 		if t_eval is None or xp.isclose(t_eval[0], t_span[0], rtol=1e-12, atol=1e-12):
 			t_vec, y_vec = [t_span[0]], y_[..., xp.newaxis] 
@@ -282,7 +291,10 @@ class SymplecticIntegrator:
 		self.alpha_s_ = self.alpha_s * self.step
 		count = 0
 		while t < t_span[-1]:
-			t, y_ = self._integrate(chi, chi_star, t, y_)
+			if number_vars==2:
+				t, y_ = self._integrate(chi_, chi_star_, t, y_)
+			else:
+				t, y_ = self._integrate(chi_, chi_star_, y_)
 			if evenly_spaced or t_eval is None:
 				count += 1
 				if count % spacing == 0:

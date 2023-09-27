@@ -272,12 +272,11 @@ class SymplecticIntegrator:
 				raise ValueError("`t_eval` must be 1-dimensional.")
 			if xp.any(t_eval < t0) or xp.any(t_eval > tf):
 				raise ValueError("Values in `t_eval` are not within `t_span`.")
-			d = xp.diff(t_eval)
-			if xp.any(d <= 0):
+			if xp.any(xp.diff(t_eval) <= 0):
 				raise ValueError("Values in `t_eval` are not properly sorted.")
 			if not xp.isclose(t_eval[0], t_span[0], rtol=1e-12, atol=1e-12):
 				t_eval = xp.insert(t_eval, 0, t_span[0])
-		evenly_spaced = True if (t_eval is not None and len(t_eval) >= 2 and xp.allclose(xp.diff(t_eval)-xp.diff(t_eval)[0], 0, rtol=1e-12, atol=1e-12)) else False
+		evenly_spaced = True if (t_eval is not None and len(t_eval)>=2 and xp.allclose(xp.diff(t_eval)-xp.diff(t_eval)[0], 0, rtol=1e-12, atol=1e-12)) else False
 		timestep = self.step
 		if evenly_spaced:
 			timestep = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / self.step)
@@ -291,10 +290,7 @@ class SymplecticIntegrator:
 		self.alpha_s_ = self.alpha_s * self.step
 		count = 0
 		while t < t_span[-1]:
-			if number_vars==2:
-				t, y_ = self._integrate(chi_, chi_star_, t, y_)
-			else:
-				t, y_ = self._integrate(chi_, chi_star_, y_)
+			t, y_ = self._integrate(chi_, chi_star_, t, y_)
 			if evenly_spaced or t_eval is None:
 				count += 1
 				if count % spacing == 0:
@@ -312,27 +308,87 @@ class SymplecticIntegrator:
 		else:
 			return OdeSolution(t=t_eval, y=interp1d(t_vec, y_vec, assume_sorted=True)(t_eval), time_step=self.step)
 		
-	def chi_ext(self, h, t, y, eqn:Callable):
+	def chi_ext(self, h, t, y, fun:Callable):
 		y_ = xp.split(y, 2)
-		y_[0] += h * eqn(t, y_[1])
-		y_[1] += h * eqn(t, y_[0])
+		y_[0] += h * fun(t, y_[1])
+		y_[1] += h * fun(t, y_[0])
 		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
 		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), xp.split(y_, 4)).flatten()
 		return t + h, y_
 		
-	def chi_ext_star(self, h, t, y, eqn:Callable):
+	def chi_ext_star(self, h, t, y, fun:Callable):
 		t += h
 		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), xp.split(y, 4)).flatten()
 		y_ = xp.split(y_, 2)
-		y_[1] += h * eqn(t, y_[0])
-		y_[0] += h * eqn(t, y_[1])
+		y_[1] += h * fun(t, y_[0])
+		y_[0] += h * fun(t, y_[1])
 		return t, xp.concatenate((y_[0], y_[1]), axis=None)
 
-	def solve_ivp_sympext(self, eqn:Callable, t_span:tuple, y0:xp.ndarray, t_eval:Union[int, float, list, xp.ndarray], command:Callable=None) -> OdeSolution:
-		chi = lambda h, t, y: self.chi_ext(h, t, y, eqn)
-		chi_star = lambda h, t, y: self.chi_ext_star(h, t, y, eqn)
-		y_ = xp.tile(y0, 2)
-		sol = self.integrator(self.TimeStep).integrate(chi, chi_star, t_span, y_, t_eval=t_eval, command=command)
-		y_ = xp.split(sol.y[1], 4, axis=0)
-		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
-		return sol
+def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[int, float, list, xp.ndarray]=None, 
+					  method:str='BM4', omega:float=10, command:Callable=None) -> OdeSolution:
+	"""
+	Solve an initial value problem for a Hamiltonian system using an 
+	explicit symplectic approximation obtained by an extension in 
+	phase space (see [1]).
+
+	This function numerically integrates a system of ordinary differential
+	equations given an initial value::
+
+	dy / dt = {y, H(t, y)}
+	y(t0) = y0
+
+	Here t is a 1-D independent variable (time), y(t) is an
+	N-D vector-valued function (state), and a Hamiltonian H(t, y)
+	and a Poisson bracket {. , .} determine the differential equations.
+	The goal is to find y(t) approximately satisfying the differential
+	equations, given an initial value y(t0)=y0.
+
+	.. versionadded:: 0.2.0
+
+	Parameters
+	----------
+	fun : callable
+		Right-hand side of the system: the time derivative of the state ``y``
+		at time ``t``. i.e., {y, H(t, y)}. The calling signature is 
+		``fun(t, y)``, where ``t`` is a scalar and ``y`` is an ndarray with 
+		``len(y) = len(y0)``. ``fun`` must return an array of the same shape 
+		as ``y``. 
+	t_span : 2-member sequence
+		Interval of integration (t0, tf). The solver starts with t=t0 and
+		integrates until it reaches t=tf. Both t0 and tf must be floats
+		or values interpretable by the float conversion function.	
+	y0 : array_like, shape (n,)
+		Initial state.
+	step : float
+		Step size.
+	t_eval : array_like or None, optional
+		Times at which to store the computed solution, must be sorted and lie
+		within `t_span`. If None (default), use points selected by the solver.	
+	method : string, optional
+        Integration methods are listed on https://pypi.org/project/pyhamsys/ 
+		'BM4' is the default.
+	command : function of (t, y) or None, optional
+		function to be run at each time step.   
+
+	Returns
+	-------
+	Bunch object with the following fields defined:
+	t : ndarray, shape (n_points,)  
+		Time points.
+	y : ndarray, shape (n, n_points)  
+		Values of the solution at `t`.
+	time_step : time step used in the computation
+
+	References
+	----------
+		[1] Tao, M., 2016, "Explicit symplectic approximation of nonseparable 
+		Hamiltonians: Algorithm and long time performance", Phys. Rev. E 94, 043303
+	"""
+	integrator = SymplecticIntegrator(method, step, omega=omega)
+	chi = lambda h, t, y: integrator.chi_ext(h, t, y, fun)
+	chi_star = lambda h, t, y: integrator.chi_ext_star(h, t, y, fun)
+	y_ = xp.tile(y0, 2)
+	sol = integrator.integrator(step).integrate(chi, chi_star, t_span, y_, t_eval=t_eval, command=command)
+	y_ = xp.split(sol.y[1], 4, axis=0)
+	sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
+	return sol

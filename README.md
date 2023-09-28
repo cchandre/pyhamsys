@@ -37,12 +37,25 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     
 All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator.
 
-Usage: *integrator* = SymplecticIntegrator(*name*, *step*)
-where *name* is one of the names listed above and *step* is the time step of the integrator (float). 
+Usage: *integrator* = SymplecticIntegrator(*name*, *step*) where *name* is one of the names listed above and *step* is the time step of the integrator (float). 
 
-The function *integrator*.`_integrate` integrates the Hamiltonian flow by one time step.
+The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value problem for a Hamiltonian system using an explicit symplectic splitting scheme (see [1]). These functions numerically integrate a system of ordinary differential equations given an initial value::
+	d*y* / d*t* = {y, H(t, y)}
+	y(t0) = y0
+
+		Here t is a 1-D independent variable (time), y(t) is an N-D 
+		vector-valued function (state), and a Hamiltonian H(t, y) and a 
+		Poisson bracket {. , .} determine the differential equations.
+		The goal is to find y(t) approximately satisfying the differential
+		equations, given an initial value y(t0)=y0. The Hamiltonian flow
+		is defined by two functions chi and chi_star (see [2]).
 
 The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the float, list or numpy array *times*.
+The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the integer, float, list or numpy array t_span.
+
+
+
+		
 
 Parameters:  
   - *chi* : function of (*h*, *y*), *y* being the state vector.

@@ -30,7 +30,6 @@ from scipy.fft import rfft, irfft, rfftfreq
 from scipy.interpolate import interp1d
 from typing import Callable, Union
 from scipy.optimize import OptimizeResult
-from inspect import signature
 import warnings
 
 warnings.simplefilter('once', UserWarning)
@@ -117,12 +116,12 @@ class OdeSolution(OptimizeResult):
 class SymplecticIntegrator:
 	"""
     Some symplectic splitting integrators in Python
-    .. version:: 0.2.0
 
     Attributes
     ----------
     name : str
-        Name of the symplectic integrator.
+        Name of the symplectic integrator. 
+		Integration methods are listed on https://pypi.org/project/pyhamsys/ 
     step : float
         Step size.
     """
@@ -217,10 +216,10 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	Parameters
 	----------
 	chi : callable
-		function of (h, t, y) returning exp(h X_n)...exp(h X_1) y at time t.
+		Function of (h, t, y) returning exp(h X_n)...exp(h X_1) y at time t.
 		`chi` must return an array of the same shape as y.
 	chi_star : callable 
-		function of (h, t, y) returning exp(h X_1)...exp(h X_n) y at time t.
+		Function of (h, t, y) returning exp(h X_1)...exp(h X_n) y at time t.
 		`chi_star` must return an array of the same shape as y.
 	t_span : 2-member sequence
 		Interval of integration (t0, tf). The solver starts with t=t0 and
@@ -237,7 +236,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
         Integration methods are listed on https://pypi.org/project/pyhamsys/ 
 		'BM4' is the default.
 	command : function of (t, y) 
-		function to be run at each time step.   
+		Function to be run at each step size.   
 
 	Returns
 	-------
@@ -246,7 +245,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		Time points.
 	y : ndarray, shape (n, n_points)  
 		Values of the solution at `t`.
-	time_step : time step used in the computation
+	step : step size used in the computation
 
 	References
 	----------
@@ -276,16 +275,16 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		if not xp.isclose(t_eval[0], t_span[0], rtol=1e-12, atol=1e-12):
 			t_eval = xp.insert(t_eval, 0, t_span[0])
 	evenly_spaced = True if (t_eval is not None and len(t_eval)>=2 and xp.allclose(xp.diff(t_eval)-xp.diff(t_eval)[0], 0, rtol=1e-12, atol=1e-12)) else False
-	timestep = step
+	newstep = step
 	if evenly_spaced:
-		timestep = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / step)
-		spacing = int(xp.ceil((t_eval[1] - t_eval[0]) / timestep))
+		newstep = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / step)
+		spacing = int(xp.ceil((t_eval[1] - t_eval[0]) / newstep))
 	elif t_eval is None:
-		timestep = xp.abs((tf - t0)) / xp.ceil(xp.abs((tf - t0)) / step)
-		spacing = int(xp.ceil(xp.abs((tf - t0)) / timestep))
-	if xp.abs(timestep - step) >= 1e-12:
-		print(f"\033[91m        The time step is redefined: old ({step}) -> new ({timestep}) \033[00m")
-	step = timestep
+		newstep = xp.abs((tf - t0)) / xp.ceil(xp.abs((tf - t0)) / step)
+		spacing = int(xp.ceil(xp.abs((tf - t0)) / newstep))
+	if xp.abs(newstep - step) >= 1e-12:
+		print(f"\033[91m        The step size is redefined: old ({step}) -> new ({newstep}) \033[00m")
+	step = newstep
 	alpha_s_ = integrator.alpha_s * step
 
 	def _integrate(chi_:Callable, chi_star_:Callable, t, y):
@@ -310,9 +309,9 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 			command(t, y_)
 	t_vec = xp.asarray(t_vec)
 	if evenly_spaced or t_eval is None:
-		return OdeSolution(t=t_vec, y=y_vec, time_step=step)
+		return OdeSolution(t=t_vec, y=y_vec, step=step)
 	else:
-		return OdeSolution(t=t_eval, y=interp1d(t_vec, y_vec, assume_sorted=True)(t_eval), time_step=step)
+		return OdeSolution(t=t_eval, y=interp1d(t_vec, y_vec, assume_sorted=True)(t_eval), step=step)
 		
 
 def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
@@ -359,7 +358,7 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	omega : float, optional
 		Coupling parameter in the extended phase space (see [1])
 	command : function of (t, y) or None, optional
-		function to be run at each time step.   
+		Function to be run at each step size.   
 
 	Returns
 	-------
@@ -368,7 +367,7 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		Time points.
 	y : ndarray, shape (n, n_points)  
 		Values of the solution at `t`.
-	time_step : time step used in the computation
+	step : step size used in the computation
 
 	References
 	----------

@@ -28,7 +28,7 @@
 import numpy as xp
 from scipy.fft import rfft, irfft, rfftfreq
 from scipy.interpolate import interp1d
-from typing import Callable, Tuple, Union
+from typing import Callable, Union
 from scipy.optimize import OptimizeResult
 from inspect import signature
 import warnings
@@ -129,8 +129,6 @@ class SymplecticIntegrator:
     Methods
     ------- 
 	integrate : integrate the flow from initial to final time 
-	solve_ivp_sympext : use an extended phase space approach to 
-	symplectic integration
     """
 	def __repr__(self) -> str:
 		return f'{self.__class__.__name__}({self.name}, {self.step})'
@@ -138,8 +136,8 @@ class SymplecticIntegrator:
 	def __str__(self) -> str:
 		return f'{self.name}'
 
-	def __init__(self, name:str, step:float, omega:float=10) -> None:
-		self.name = name.split('_')[0]
+	def __init__(self, name:str, step:float) -> None:
+		self.name = name
 		self.step = step
 		if (self.name not in METHODS) and (self.name[:2] != 'Yo'):
 			raise ValueError(f"The chosen integrator must be one of {METHODS}.")
@@ -200,10 +198,6 @@ class SymplecticIntegrator:
 		else:
 			self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
 			self.alpha_o = xp.tile([1, 0], len(alpha_s))
-		if len(name.split('_')) >= 1 and name.split('_') == 'ext':
-			self.rotation_e = lambda h: (xp.array([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]])\
-			  + xp.cos(2 * omega * h) * xp.array([[1, -1, 0, 0], [-1, 1, 0, 0], [0, 0, 1, -1], [0, 0, -1, 1]])\
-			  + xp.sin(2 * omega * h) * xp.array([[0, 0, -1, 1], [0, 0, 1, -1], [1, -1, 0, 0], [-1, 1, 0, 0]])) / 2
 
 	def _integrate(self, chi_:Callable, chi_star_:Callable, t, y):
 		for h, st in zip(self.alpha_s_, self.alpha_o):
@@ -218,7 +212,6 @@ class SymplecticIntegrator:
 		symplectic splitting integrators.
 		Returns the value of y at times defines by the integer, float, list 
 		or numpy array times.
-		.. versionadded:: 0.2.0
 
 		Parameters
 		----------
@@ -254,7 +247,7 @@ class SymplecticIntegrator:
 		"""
 		number_vars = len(signature(chi).parameters) - 1
 		if number_vars==2:
-			chi_, chi_star_  = chi, chi_star
+			chi_, chi_star_ = chi, chi_star
 		elif number_vars==1:
 			chi_ = lambda h, t, y: chi(h, y)
 			chi_star_ = lambda h, t, y: chi_star(h, y)
@@ -308,21 +301,6 @@ class SymplecticIntegrator:
 		else:
 			return OdeSolution(t=t_eval, y=interp1d(t_vec, y_vec, assume_sorted=True)(t_eval), time_step=self.step)
 		
-	def chi_ext(self, h, t, y, fun:Callable):
-		y_ = xp.split(y, 2)
-		y_[0] += h * fun(t, y_[1])
-		y_[1] += h * fun(t, y_[0])
-		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
-		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), xp.split(y_, 4)).flatten()
-		return t + h, y_
-		
-	def chi_ext_star(self, h, t, y, fun:Callable):
-		t += h
-		y_ = xp.einsum('ij,j...->i...', self.rotation_e(h), xp.split(y, 4)).flatten()
-		y_ = xp.split(y_, 2)
-		y_[1] += h * fun(t, y_[0])
-		y_[0] += h * fun(t, y_[1])
-		return t, xp.concatenate((y_[0], y_[1]), axis=None)
 
 def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[int, float, list, xp.ndarray]=None, 
 					  method:str='BM4', omega:float=10, command:Callable=None) -> OdeSolution:
@@ -342,8 +320,6 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	and a Poisson bracket {. , .} determine the differential equations.
 	The goal is to find y(t) approximately satisfying the differential
 	equations, given an initial value y(t0)=y0.
-
-	.. versionadded:: 0.2.0
 
 	Parameters
 	----------
@@ -367,6 +343,8 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	method : string, optional
         Integration methods are listed on https://pypi.org/project/pyhamsys/ 
 		'BM4' is the default.
+	omega : float, optional
+		Coupling parameter in the extended phase space (see [1])
 	command : function of (t, y) or None, optional
 		function to be run at each time step.   
 
@@ -384,9 +362,29 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		[1] Tao, M., 2016, "Explicit symplectic approximation of nonseparable 
 		Hamiltonians: Algorithm and long time performance", Phys. Rev. E 94, 043303
 	"""
-	integrator = SymplecticIntegrator(method, step, omega=omega)
-	chi = lambda h, t, y: integrator.chi_ext(h, t, y, fun)
-	chi_star = lambda h, t, y: integrator.chi_ext_star(h, t, y, fun)
+	integrator = SymplecticIntegrator(method, step)
+	rotation_e = lambda h: (xp.array([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]])\
+			  + xp.cos(2 * omega * h) * xp.array([[1, -1, 0, 0], [-1, 1, 0, 0], [0, 0, 1, -1], [0, 0, -1, 1]])\
+			  + xp.sin(2 * omega * h) * xp.array([[0, 0, -1, 1], [0, 0, 1, -1], [1, -1, 0, 0], [-1, 1, 0, 0]])) / 2
+
+	def chi_ext(h, t, y, fun:Callable):
+		y_ = xp.split(y, 2)
+		y_[0] += h * fun(t, y_[1])
+		y_[1] += h * fun(t, y_[0])
+		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
+		y_ = xp.einsum('ij,j...->i...', rotation_e(h), xp.split(y_, 4)).flatten()
+		return t + h, y_
+		
+	def chi_ext_star(h, t, y, fun:Callable):
+		t += h
+		y_ = xp.einsum('ij,j...->i...', rotation_e(h), xp.split(y, 4)).flatten()
+		y_ = xp.split(y_, 2)
+		y_[1] += h * fun(t, y_[0])
+		y_[0] += h * fun(t, y_[1])
+		return t, xp.concatenate((y_[0], y_[1]), axis=None)
+	
+	chi = lambda h, t, y: chi_ext(h, t, y, fun)
+	chi_star = lambda h, t, y: chi_ext_star(h, t, y, fun)
 	y_ = xp.tile(y0, 2)
 	sol = integrator.integrator(step).integrate(chi, chi_star, t_span, y_, t_eval=t_eval, command=command)
 	y_ = xp.split(sol.y[1], 4, axis=0)

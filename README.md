@@ -39,18 +39,9 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 
 Usage: *integrator* = SymplecticIntegrator(*name*, *step*) where *name* is one of the names listed above and *step* is the time step of the integrator (float). 
 
-The functions *integrator*.`integrate` and `solve_ivp_sympext` 
-
-The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the float, list or numpy array *times*.
-The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the integer, float, list or numpy array t_span.
-
-Solve an initial value problem for a Hamiltonian system using an explicit symplectic splitting scheme (see [1]).
-
-		This function numerically integrates a system of ordinary differential
-		equations given an initial value::
-
-		dy / dt = {y, H(t, y)}
-		y(t0) = y0
+The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value problem for a Hamiltonian system using an explicit symplectic splitting scheme (see [1]). These functions numerically integrate a system of ordinary differential equations given an initial value::
+	d*y* / d*t* = {y, H(t, y)}
+	y(t0) = y0
 
 		Here t is a 1-D independent variable (time), y(t) is an N-D 
 		vector-valued function (state), and a Hamiltonian H(t, y) and a 
@@ -58,6 +49,13 @@ Solve an initial value problem for a Hamiltonian system using an explicit symple
 		The goal is to find y(t) approximately satisfying the differential
 		equations, given an initial value y(t0)=y0. The Hamiltonian flow
 		is defined by two functions chi and chi_star (see [2]).
+
+The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the float, list or numpy array *times*.
+The function *integrator*.`integrate` integrates the Hamiltonian flow from the initial conditions specified by the initial state vector *y* using *integrator*, one of the selected symplectic splitting integrators. It returns the value of *y* at times defines by the integer, float, list or numpy array t_span.
+
+
+
+		
 
 Parameters:  
   - *chi* : function of (*h*, *y*), *y* being the state vector.

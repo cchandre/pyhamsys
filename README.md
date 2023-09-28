@@ -75,6 +75,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, or register specific events).
 
 ### Remarks:   
+  - Use `solve_ivp_symp` is the Hamiltonian can be split and if each partial flow exp(*h* X<sub>*k*</sub>) can be easily computed. Otherwise use `solve_ivp_sympext`.  
   - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes.  
   - If `t_eval` is not linearly spaced, a linear interpolation of the solution is performed; the accuracy of the integrator might be lost.   
 

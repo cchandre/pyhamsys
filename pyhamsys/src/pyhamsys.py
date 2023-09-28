@@ -272,16 +272,12 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		if not xp.isclose(t_eval[0], t_span[0], rtol=1e-12, atol=1e-12):
 			t_eval = xp.insert(t_eval, 0, t_span[0])
 	evenly_spaced = True if (t_eval is not None and len(t_eval)>=2 and xp.allclose(xp.diff(t_eval)-xp.diff(t_eval)[0], 0, rtol=1e-12, atol=1e-12)) else False
-	newstep = step
 	if evenly_spaced:
-		newstep = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / step)
-		spacing = int(xp.ceil((t_eval[1] - t_eval[0]) / newstep))
+		step = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / step)
+		spacing = int(xp.ceil((t_eval[1] - t_eval[0]) / step))
 	elif t_eval is None:
-		newstep = xp.abs((tf - t0)) / xp.ceil(xp.abs((tf - t0)) / step)
-		spacing = int(xp.ceil(xp.abs((tf - t0)) / newstep))
-	if xp.abs(newstep - step) >= 1e-12:
-		print(f"\033[91m        The step size is redefined: old ({step}) -> new ({newstep}) \033[00m")
-	step = newstep
+		step = xp.abs((tf - t0)) / xp.ceil(xp.abs((tf - t0)) / step)
+		spacing = int(xp.ceil(xp.abs((tf - t0)) / step))
 	alpha_s = integrator.alpha_s * step
 
 	def _integrate(t, y):
@@ -293,7 +289,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	count = 0
 	while t < t_span[-1]:
 		t, y_ = _integrate(t, y_)
-		if evenly_spaced or t_eval is None:
+		if evenly_spaced:
 			count += 1
 			if count % spacing == 0:
 				count = 0

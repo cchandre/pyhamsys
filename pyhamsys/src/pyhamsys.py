@@ -367,7 +367,7 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 			  + xp.cos(2 * omega * h) * xp.array([[1, -1, 0, 0], [-1, 1, 0, 0], [0, 0, 1, -1], [0, 0, -1, 1]])\
 			  + xp.sin(2 * omega * h) * xp.array([[0, 0, -1, 1], [0, 0, 1, -1], [1, -1, 0, 0], [-1, 1, 0, 0]])) / 2
 
-	def chi_ext(h, t, y, fun:Callable):
+	def chi_ext(h, t, y):
 		y_ = xp.split(y, 2)
 		y_[0] += h * fun(t, y_[1])
 		y_[1] += h * fun(t, y_[0])
@@ -375,7 +375,7 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		y_ = xp.einsum('ij,j...->i...', rotation_e(h), xp.split(y_, 4)).flatten()
 		return t + h, y_
 		
-	def chi_ext_star(h, t, y, fun:Callable):
+	def chi_ext_star(h, t, y):
 		t += h
 		y_ = xp.einsum('ij,j...->i...', rotation_e(h), xp.split(y, 4)).flatten()
 		y_ = xp.split(y_, 2)
@@ -383,10 +383,8 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		y_[0] += h * fun(t, y_[1])
 		return t, xp.concatenate((y_[0], y_[1]), axis=None)
 	
-	chi = lambda h, t, y: chi_ext(h, t, y, fun)
-	chi_star = lambda h, t, y: chi_ext_star(h, t, y, fun)
 	y_ = xp.tile(y0, 2)
-	sol = integrator.integrator(step).integrate(chi, chi_star, t_span, y_, t_eval=t_eval, command=command)
+	sol = integrator.integrator(step).integrate(chi_ext, chi_ext_star, t_span, y_, t_eval=t_eval, command=command)
 	y_ = xp.split(sol.y[1], 4, axis=0)
 	sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	return sol

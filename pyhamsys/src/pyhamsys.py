@@ -115,25 +115,22 @@ class OdeSolution(OptimizeResult):
 
 class SymplecticIntegrator:
 	"""
-    Some symplectic splitting integrators in Python
+    Some explicit symplectic splitting integrators in Python
 
     Attributes
     ----------
     name : str
         Name of the symplectic integrator. 
-		Integration methods are listed on https://pypi.org/project/pyhamsys/ 
-    step : float
-        Step size.
+		Integration methods are listed in https://pypi.org/project/pyhamsys/ 
     """
 	def __repr__(self) -> str:
-		return f'{self.__class__.__name__}({self.name}, {self.step})'
+		return f'{self.__class__.__name__}({self.name})'
 	
 	def __str__(self) -> str:
 		return f'{self.name}'
 
-	def __init__(self, name:str, step:float) -> None:
+	def __init__(self, name:str) -> None:
 		self.name = name
-		self.step = step
 		if (self.name not in METHODS) and (self.name[:2] != 'Yo'):
 			raise ValueError(f"The chosen integrator must be one of {METHODS}.")
 		if self.name == 'Verlet':
@@ -255,7 +252,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		[2] McLachlan, R.I, 2022, "Tuning symplectic integrators is easy and 
 		worthwhile", Commun. Comput. Phys. 31, 987 (2022)
 	"""
-	integrator = SymplecticIntegrator(method, step)
+	integrator = SymplecticIntegrator(method)
 	t, y_ = t_span[0], y0.copy()
 	if t_eval is None or xp.isclose(t_eval[0], t_span[0], rtol=1e-12, atol=1e-12):
 		t_vec, y_vec = [t_span[0]], y_[..., xp.newaxis] 
@@ -285,17 +282,17 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	if xp.abs(newstep - step) >= 1e-12:
 		print(f"\033[91m        The step size is redefined: old ({step}) -> new ({newstep}) \033[00m")
 	step = newstep
-	alpha_s_ = integrator.alpha_s * step
+	alpha_s = integrator.alpha_s * step
 
-	def _integrate(chi_:Callable, chi_star_:Callable, t, y):
-		for h, st in zip(alpha_s_, integrator.alpha_o):
+	def _integrate(t, y):
+		for h, st in zip(alpha_s, integrator.alpha_o):
 			t += h
-			y = chi_(h, t, y) if st==0 else chi_star_(h, t, y)
+			y = chi(h, t, y) if st==0 else chi_star(h, t, y)
 		return t, y
 
 	count = 0
 	while t < t_span[-1]:
-		t, y_ = _integrate(chi, chi_star, t, y_)
+		t, y_ = _integrate(t, y_)
 		if evenly_spaced or t_eval is None:
 			count += 1
 			if count % spacing == 0:
@@ -374,29 +371,29 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		[1] Tao, M., 2016, "Explicit symplectic approximation of nonseparable 
 		Hamiltonians: Algorithm and long time performance", Phys. Rev. E 94, 043303
 	"""
-	def rotation_e(h:float) -> xp.ndarray:
+	def _coupling(h:float) -> xp.ndarray:
 		return (xp.array([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]])\
 			  + xp.cos(2 * omega * h) * xp.array([[1, -1, 0, 0], [-1, 1, 0, 0], [0, 0, 1, -1], [0, 0, -1, 1]])\
 			  + xp.sin(2 * omega * h) * xp.array([[0, 0, -1, 1], [0, 0, 1, -1], [1, -1, 0, 0], [-1, 1, 0, 0]])) / 2
 
-	def chi_ext(h, t, y):
+	def _chi_ext(h, t, y):
 		y_ = xp.split(y, 2)
 		y_[0] += h * fun(t, y_[1])
 		y_[1] += h * fun(t, y_[0])
 		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
-		y_ = xp.einsum('ij,j...->i...', rotation_e(h), xp.split(y_, 4)).flatten()
+		y_ = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_, 4)).flatten()
 		return t + h, y_
 		
-	def chi_ext_star(h, t, y):
+	def _chi_ext_star(h, t, y):
 		t += h
-		y_ = xp.einsum('ij,j...->i...', rotation_e(h), xp.split(y, 4)).flatten()
+		y_ = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y, 4)).flatten()
 		y_ = xp.split(y_, 2)
 		y_[1] += h * fun(t, y_[0])
 		y_[0] += h * fun(t, y_[1])
 		return t, xp.concatenate((y_[0], y_[1]), axis=None)
 	
 	y_ = xp.tile(y0, 2)
-	sol = solve_ivp_symp(chi_ext, chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	y_ = xp.split(sol.y[1], 4, axis=0)
+	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
+	y_ = xp.split(sol.y, 4, axis=0)
 	sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	return sol

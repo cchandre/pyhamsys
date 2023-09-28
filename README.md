@@ -42,7 +42,7 @@ Usage: *integrator* = SymplecticIntegrator(*name*) where *name* is one of the na
 The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value problem for a Hamiltonian system using an element of the class SymplecticIntegrator, an explicit symplectic splitting scheme (see [1]). These functions numerically integrate a system of ordinary differential equations given an initial value:  
 	&nbsp; d*y* / d*t* = {*y*, *H*(*t*, *y*)}  
 	&nbsp; *y*(*t*<sub>0</sub>) = *y*<sub>0</sub>  
-Here *t* is a 1-D independent variable (time), *y*(*t*) is an N-D vector-valued function (state), and a Hamiltonian *H*(*t*, *y*) and a Poisson bracket {. , .} determine the differential equations. The goal is to find *y*(*t*) approximately satisfying the differential equations, given an initial value *y*(*t*<sub>0</sub>) = *y*<sub>0</sub>. 
+Here *t* is a 1-D independent variable (time), *y*(*t*) is an N-D vector-valued function (state). A Hamiltonian *H*(*t*, *y*) and a Poisson bracket {. , .} determine the differential equations. The goal is to find *y*(*t*) approximately satisfying the differential equations, given an initial value *y*(*t*<sub>0</sub>) = *y*<sub>0</sub>. 
 
 The function `solve_ivp_symp` solves an initial value problem using an explicit symplectic integration. The Hamiltonian flow is defined by two functions `chi` and `chi_star` of (*h*, *t*, *y*) (see [2]). 
 
@@ -97,8 +97,9 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 ```[python]
 >>> import numpy as xp
 >>> from pyhamsys import solve_ivp_sympext
->>> fun = lambda t, y: 
->>> sol = solve_ivp_sympext(fun, (0, 10), )
+>>> def fun(t,y): x, p = xp.split(y, 2) return xp.concatenate((p, -xp.sin(x)), axis=None)
+>>> sol = solve_ivp_sympext(fun, (0, 2*xp.pi), xp.asarray([0, 0.1]), step=1e-2, t_eval=xp.linspace(0, 2*xp.pi, 10))
 >>> print(sol.t)
 >>> print(sol.y)
+>>> print(sol.step)
 ```

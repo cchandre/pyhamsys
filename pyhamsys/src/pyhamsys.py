@@ -30,9 +30,6 @@ from scipy.fft import rfft, irfft, rfftfreq
 from scipy.interpolate import interp1d
 from typing import Callable, Union
 from scipy.optimize import OptimizeResult
-import warnings
-
-warnings.simplefilter('once', UserWarning)
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)
@@ -194,8 +191,8 @@ class SymplecticIntegrator:
 def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None,
 				   method:str='BM4', command:Callable=None) -> OdeSolution:
 	"""
-	Solve an initial value problem for a Hamiltonian system using an 
-	explicit symplectic splitting scheme (see [1]).
+	Solve an initial value problem for a Hamiltonian system using an explicit 
+	symplectic splitting scheme (see [1]).
 
 	This function numerically integrates a system of ordinary differential
 	equations given an initial value::
@@ -203,12 +200,12 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	dy / dt = {y, H(t, y)}
 	y(t0) = y0
 
-	Here t is a 1-D independent variable (time), y(t) is an N-D 
-	vector-valued function (state), and a Hamiltonian H(t, y) and a 
-	Poisson bracket {. , .} determine the differential equations.
-	The goal is to find y(t) approximately satisfying the differential
-	equations, given an initial value y(t0)=y0. The Hamiltonian flow
-	is defined by two functions `chi` and `chi_star` (see [2]). 
+	Here t is a 1-D independent variable (time), y(t) is an N-D vector-valued 
+	function (state), and a Hamiltonian H(t, y) and a Poisson bracket {. , .} 
+	determine the differential equations. The goal is to find y(t) 
+	approximately satisfying the differential equations, given an initial value 
+	y(t0)=y0. The Hamiltonian flow is defined by two functions `chi` and 
+	`chi_star` (see [2]). 
 
 	Parameters
 	----------
@@ -220,8 +217,8 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		`chi_star` must return an array of the same shape as y.
 	t_span : 2-member sequence
 		Interval of integration (t0, tf). The solver starts with t=t0 and
-		integrates until it reaches t=tf. Both t0 and tf must be floats
-		or values interpretable by the float conversion function.	
+		integrates until it reaches t=tf. Both t0 and tf must be floats or 
+		values interpretable by the float conversion function.	
 	y0 : array_like, shape (n,)
 		Initial state.
 	step : float
@@ -269,15 +266,14 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 			raise ValueError("Values in `t_eval` are not within `t_span`.")
 		if xp.any(xp.diff(t_eval) <= 0):
 			raise ValueError("Values in `t_eval` are not properly sorted.")
-		if not xp.isclose(t_eval[0], t_span[0], rtol=1e-12, atol=1e-12):
+		if not xp.isclose(t_eval[0], t_span[0], rtol=1e-14, atol=1e-14):
 			t_eval = xp.insert(t_eval, 0, t_span[0])
-	evenly_spaced = True if (t_eval is not None and len(t_eval)>=2 and xp.allclose(xp.diff(t_eval)-xp.diff(t_eval)[0], 0, rtol=1e-12, atol=1e-12)) else False
+	evenly_spaced = True if (t_eval is not None and len(t_eval)>=2 and xp.allclose(xp.diff(t_eval)-xp.diff(t_eval)[0], 0, rtol=1e-14, atol=1e-14)) else False
 	if evenly_spaced:
 		step = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / step)
 		spacing = int(xp.ceil((t_eval[1] - t_eval[0]) / step))
 	elif t_eval is None:
 		step = xp.abs((tf - t0)) / xp.ceil(xp.abs((tf - t0)) / step)
-		spacing = int(xp.ceil(xp.abs((tf - t0)) / step))
 	alpha_s = integrator.alpha_s * step
 
 	def _integrate(t, y):
@@ -310,41 +306,39 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
 					  method:str='BM4', omega:float=10, command:Callable=None) -> OdeSolution:
 	"""
-	Solve an initial value problem for a Hamiltonian system using an 
-	explicit symplectic approximation obtained by an extension in 
-	phase space (see [1]).
+	Solve an initial value problem for a Hamiltonian system using an explicit 
+	symplectic approximation obtained by an extension in phase space (see [1]).
 
-	This function numerically integrates a system of ordinary differential
+	This function numerically integrates a system of ordinary differential 
 	equations given an initial value::
 
 	dy / dt = {y, H(t, y)}
 	y(t0) = y0
 
-	Here t is a 1-D independent variable (time), y(t) is an N-D 
-	vector-valued function (state), and a Hamiltonian H(t, y) and a 
-	Poisson bracket {. , .} determine the differential equations.
-	The goal is to find y(t) approximately satisfying the differential
-	equations, given an initial value y(t0)=y0.
+	Here t is a 1-D independent variable (time), y(t) is an N-D vector-valued 
+	function (state), and a Hamiltonian H(t, y) and a Poisson bracket {. , .} 
+	determine the differential equations. The goal is to find y(t) 
+	approximately satisfying the differential equations, given an initial value 
+	y(t0)=y0.
 
 	Parameters
 	----------
 	fun : callable
-		Right-hand side of the system: the time derivative of the state y
-		at time t. i.e., {y, H(t, y)}. The calling signature is 
-		`fun(t, y)`, where `t` is a scalar and `y` is an ndarray with 
-		`len(y) = len(y0)`. `fun` must return an array of the same shape 
-		as `y`. 
+		Right-hand side of the system: the time derivative of the state y at 
+		time t. i.e., {y, H(t, y)}. The calling signature is `fun(t, y)`, where 
+		`t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`. 
+		`fun` must return an array of the same shape as `y`. 
 	t_span : 2-member sequence
 		Interval of integration (t0, tf). The solver starts with t=t0 and
-		integrates until it reaches t=tf. Both t0 and tf must be floats
-		or values interpretable by the float conversion function.	
+		integrates until it reaches t=tf. Both t0 and tf must be floats or 
+		values interpretable by the float conversion function.	
 	y0 : array_like, shape (n,)
 		Initial state.
 	step : float
 		Step size.
 	t_eval : array_like or None, optional
 		Times at which to store the computed solution, must be sorted and lie
-		within `t_span`. If None (default), use points selected by the solver.	
+		within `t_span`. If None (default), use points selected by the solver.
 	method : string, optional
         Integration methods are listed on https://pypi.org/project/pyhamsys/ 
 		'BM4' is the default.
@@ -365,7 +359,8 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	References
 	----------
 		[1] Tao, M., 2016, "Explicit symplectic approximation of nonseparable 
-		Hamiltonians: Algorithm and long time performance", Phys. Rev. E 94, 043303
+		Hamiltonians: Algorithm and long time performance", 
+		Phys. Rev. E 94, 043303
 	"""
 	def _coupling(h:float) -> xp.ndarray:
 		return (xp.array([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]])\

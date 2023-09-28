@@ -48,7 +48,7 @@ The function `solve_ivp_symp` solves an initial value problem using an explicit 
 
 The function `solve_ivp_sympext` solves an initial value problem using an explicit symplectic approximation obtained by an extension in phase space (see [3]). The Hamiltonian flow is defined by one function `fun` of (*t*, *y*) and one coupling parameter `omega`. 
 
-Parameters:  
+### Parameters:  
 
   - `chi` (for `solve_ivp_symp`) : callable  
 	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y* at time *t*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *A*<sub>*k*</sub>, i.e., for Hamiltonian flows X<sub>*k*</sub> = {*A*<sub>*k*</sub> , &centerdot;} where {&centerdot; , &centerdot;} is the Poisson bracket.
@@ -74,11 +74,11 @@ Parameters:
   - `command` : function of (*t*, *y*)  
 	Function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, or register specific events).
 
-Remarks:   
-    - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes.  
-    - If `t_eval` is not linearly spaced, a linear interpolation of the solution is performed; the accuracy of the integrator might be lost.   
+### Remarks:   
+  - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes.  
+  - If `t_eval` is not linearly spaced, a linear interpolation of the solution is performed; the accuracy of the integrator might be lost.   
 
-Returns:  
+### Returns:  
 &nbsp; Bunch object with the following fields defined:
    - `t` : ndarray, shape (n_points,)  
 	Time points.
@@ -86,7 +86,7 @@ Returns:
 	Values of the solution at `t`.
    - `step` : step size used in the computation.
 
-References:
-  [1] Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)  
-  [2] McLachlan, *Tuning symplectic integrators is easy and worthwhile*, Commun. Comput. Phys. 31, 987 (2022); [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)  
-  [3] Tao, M., *Explicit symplectic approximation of nonseparable Hamiltonians: Algorithm and long time performance*, Phys. Rev. E 94, 043303 (2016)  
+### References:  
+  - [1] Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)  
+  - [2] McLachlan, *Tuning symplectic integrators is easy and worthwhile*, Commun. Comput. Phys. 31, 987 (2022); [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)  
+  - [3] Tao, M., *Explicit symplectic approximation of nonseparable Hamiltonians: Algorithm and long time performance*, Phys. Rev. E 94, 043303 (2016)  

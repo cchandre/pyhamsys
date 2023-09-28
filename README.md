@@ -46,7 +46,7 @@ Here *t* is a 1-D independent variable (time), *y*(*t*) is an N-D vector-valued 
 
 The function `solve_ivp_symp` solves an initial value problem using an explicit symplectic integration. The Hamiltonian flow is defined by two functions `chi` and `chi_star` of (*h*, *t*, *y*) (see [2]). 
 
-The function `solve_ivp_sympext` solves an initial value problem using an explicit symplectic approximation obtained by an extension in phase space. The Hamiltonian flow is defined by one function `fun` of (*t*, *y*) and one parameter `omega` (see [3]). 
+The function `solve_ivp_sympext` solves an initial value problem using an explicit symplectic approximation obtained by an extension in phase space (see [3]). The Hamiltonian flow is defined by one function `fun` of (*t*, *y*) and one coupling parameter `omega`. 
 
 Parameters:  
 

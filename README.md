@@ -44,8 +44,9 @@ The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value pr
 	&nbsp; *y*(*t*<sub>0</sub>) = *y*<sub>0</sub>  
 Here *t* is a 1-D independent variable (time), *y*(*t*) is an N-D vector-valued function (state), and a Hamiltonian *H*(*t*, *y*) and a Poisson bracket {. , .} determine the differential equations. The goal is to find *y*(*t*) approximately satisfying the differential equations, given an initial value *y*(*t*<sub>0</sub>) = *y*<sub>0</sub>. 
 
-For `solve_ivp_symp`, the Hamiltonian flow is defined by two functions `chi` and `chi_star` of (*h*, *t*, *y*) (see [2]).  
-For `solve_ivp_symp_ext`, the Hamiltonian flow is defined by one function `fun` of (*t*, *y*) and one parameter `omega` (see [3]). 
+The function `solve_ivp_symp` solves an initial value problem using an explicit symplectic integration. The Hamiltonian flow is defined by two functions `chi` and `chi_star` of (*h*, *t*, *y*) (see [2]). 
+
+The function `solve_ivp_sympext` solves an initial value problem using an explicit symplectic approximation obtained by an extension in phase space. The Hamiltonian flow is defined by one function `fun` of (*t*, *y*) and one parameter `omega` (see [3]). 
 
 Parameters:  
 
@@ -53,7 +54,7 @@ Parameters:
 	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y* at time *t*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *A*<sub>*k*</sub>, i.e., for Hamiltonian flows X<sub>*k*</sub> = {*A*<sub>*k*</sub> , &centerdot;} where {&centerdot; , &centerdot;} is the Poisson bracket.
 	`chi` must return an array of the same shape as `y`.
   - `chi_star` (for `solve_ivp_symp`) : callable   
-	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y*. at time *t*.
+	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y* at time *t*.
 	`chi_star` must return an array of the same shape as `y`.
   - `fun` (for `solve_ivp_sympext`) : callable  
 	Right-hand side of the system: the time derivative of the state *y* at time *t*. i.e., {*y*, *H*(*t*, *y*)}. The calling signature is `fun(t, y)`, where `t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`. `fun` must return an array of the same shape as `y`. 

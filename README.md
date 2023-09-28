@@ -94,7 +94,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 
 ### Example
 
-```
+```[python]
 >>> import numpy as xp
 >>> from pyhamsys import solve_ivp_sympext
 >>> fun = lambda t, y: 

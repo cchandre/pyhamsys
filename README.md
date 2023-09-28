@@ -89,4 +89,15 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 ### References:  
   - [1] Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)  
   - [2] McLachlan, *Tuning symplectic integrators is easy and worthwhile*, Commun. Comput. Phys. 31, 987 (2022); [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)  
-  - [3] Tao, M., *Explicit symplectic approximation of nonseparable Hamiltonians: Algorithm and long time performance*, Phys. Rev. E 94, 043303 (2016)  
+  - [3] Tao, M., *Explicit symplectic approximation of nonseparable Hamiltonians: Algorithm and long time performance*, Phys. Rev. E 94, 043303 (2016)
+
+### Example
+
+```
+>>> import numpy as xp
+>>> from pyhamsys import solve_ivp_sympext
+>>> fun = lambda t, y: 
+>>> sol = solve_ivp_sympext(fun, (0, 10), )
+>>> print(sol.t)
+>>> print(sol.y)
+```

@@ -336,8 +336,8 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	Parameters
 	----------
 	fun : callable
-		Right-hand side of the system: the time derivative of the state ``y``
-		at time `t`. i.e., {y, H(t, y)}. The calling signature is 
+		Right-hand side of the system: the time derivative of the state y
+		at time t. i.e., {y, H(t, y)}. The calling signature is 
 		`fun(t, y)`, where `t` is a scalar and `y` is an ndarray with 
 		`len(y) = len(y0)`. `fun` must return an array of the same shape 
 		as `y`. 

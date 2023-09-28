@@ -37,7 +37,7 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     
 All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator.
 
-Usage: *integrator* = SymplecticIntegrator(*name*, *step*) where *name* is one of the names listed above and *step* is the time step of the integrator (float). 
+Usage: *integrator* = SymplecticIntegrator(*name*) where *name* is one of the names listed above. 
 
 The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value problem for a Hamiltonian system using an element of the class SymplecticIntegrator, an explicit symplectic splitting scheme (see [1]). These functions numerically integrate a system of ordinary differential equations given an initial value:  
 	&nbsp; d*y* / d*t* = {*y*, *H*(*t*, *y*)}  

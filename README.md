@@ -65,7 +65,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
   - `step` : float   
 	Step size.
   - `t_eval` : array_like or None, optional  
-	Times at which to store the computed solution, must be sorted and lie within `t_span`. If None (default), use points selected by the solver.
+	Times at which to store the computed solution, must be sorted and equally spaced, and lie within `t_span`. If None (default), use points selected by the solver.
   - `method` : string, optional  
  	Integration methods are listed on [pyhamsys](https://pypi.org/project/pyhamsys/).   
 	'BM4' is the default.
@@ -77,7 +77,6 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 ### Remarks:   
   - Use `solve_ivp_symp` is the Hamiltonian can be split and if each partial flow exp(*h* X<sub>*k*</sub>) can be easily computed. Otherwise use `solve_ivp_sympext`.  
   - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes.  
-  - If `t_eval` is not linearly spaced, a linear interpolation of the solution is performed; the accuracy of the integrator might be lost.   
 
 ### Returns:  
 &nbsp; Bunch object with the following fields defined:
@@ -101,7 +100,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 >>> def fun(t,y):
 	x, p = xp.split(y, 2)
 	return xp.concatenate((p, -xp.sin(x)), axis=None)
->>> sol = solve_ivp_sympext(fun, (0, 20), xp.asarray([3, 0]), step=1e-1, t_eval=xp.linspace(0, 20, 500))
+>>> sol = solve_ivp_sympext(fun, (0, 20), xp.asarray([3, 0]), step=1e-1)
 >>> plt.plot(sol.y[0], sol.y[1])
 >>> plt.show()
 ```

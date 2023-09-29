@@ -282,8 +282,8 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 
 	def _integrate(t, y):
 		for h, st in zip(alpha_s, integrator.alpha_o):
+			y = chi(h, t + h, y) if st==0 else chi_star(h, t, y)
 			t += h
-			y = chi(h, t, y) if st==0 else chi_star(h, t, y)
 		return t, y
 
 	count = 0

@@ -224,8 +224,9 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	step : float
 		Step size.
 	t_eval : array_like or None, optional
-		Times at which to store the computed solution, must be sorted and lie
-		within `t_span`. If None (default), use points selected by the solver.
+		Times at which to store the computed solution, must be sorted and 
+		equally spaced, and lie within `t_span`. If None (default), use points 
+		selected by the solver.
 	method : string, optional
         Integration methods are listed on https://pypi.org/project/pyhamsys/ 
 		'BM4' is the default.
@@ -250,12 +251,13 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		worthwhile", Commun. Comput. Phys. 31, 987 (2022)
 	"""
 	integrator = SymplecticIntegrator(method)
-	t, y_ = t_span[0], y0.copy()
-	if t_eval is None or xp.isclose(t_eval[0], t_span[0], rtol=1e-12, atol=1e-12):
-		t_vec, y_vec = [t_span[0]], y_[..., xp.newaxis] 
+	t0, tf = map(float, t_span)
+
+	if t_eval is None or xp.isclose(t_eval[0], t0):
+		t_vec, y_vec = [t0], y0[..., xp.newaxis] 
 	else:
 		t_vec, y_vec = [], []
-	t0, tf = map(float, t_span)
+	
 	if t0 > tf:
 		raise ValueError("Values in `t_span` are not properly sorted.")
 	if t_eval is not None:
@@ -266,13 +268,15 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 			raise ValueError("Values in `t_eval` are not within `t_span`.")
 		if xp.any(xp.diff(t_eval) <= 0):
 			raise ValueError("Values in `t_eval` are not properly sorted.")
-		if not xp.isclose(t_eval[0], t_span[0], rtol=1e-14, atol=1e-14):
-			t_eval = xp.insert(t_eval, 0, t_span[0])
-	evenly_spaced = True if (t_eval is not None and len(t_eval)>=2 and xp.allclose(xp.diff(t_eval)-xp.diff(t_eval)[0], 0, rtol=1e-14, atol=1e-14)) else False
-	if evenly_spaced:
+		if not xp.allclose(xp.diff(t_eval), xp.diff(t_eval)[0]):
+			raise ValueError("Values in `t_eval` are not equally spaced.")
+		if not xp.isclose(t_eval[0], t0):
+			t_eval = xp.insert(t_eval, 0, t0)
+
+	if t_eval is not None:
 		step = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / step)
 		spacing = int(xp.ceil((t_eval[1] - t_eval[0]) / step))
-	elif t_eval is None:
+	else:
 		step = xp.abs((tf - t0)) / xp.ceil(xp.abs((tf - t0)) / step)
 	alpha_s = integrator.alpha_s * step
 
@@ -283,9 +287,12 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		return t, y
 
 	count = 0
-	while t < t_span[-1]:
+	t, y_ = t0, y0.copy()
+	while t < tf:
 		t, y_ = _integrate(t, y_)
-		if evenly_spaced:
+		if t_eval is not None and t > t_eval.max():
+			break
+		if t_eval is not None:
 			count += 1
 			if count % spacing == 0:
 				count = 0
@@ -297,11 +304,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		if command is not None:
 			command(t, y_)
 	t_vec = xp.asarray(t_vec)
-	if evenly_spaced or t_eval is None:
-		return OdeSolution(t=t_vec, y=y_vec, step=step)
-	else:
-		return OdeSolution(t=t_eval, y=interp1d(t_vec, y_vec, assume_sorted=True)(t_eval), step=step)
-		
+	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
 					  method:str='BM4', omega:float=10, command:Callable=None) -> OdeSolution:
@@ -337,8 +340,9 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	step : float
 		Step size.
 	t_eval : array_like or None, optional
-		Times at which to store the computed solution, must be sorted and lie
-		within `t_span`. If None (default), use points selected by the solver.
+		Times at which to store the computed solution, must be sorted and 
+		equally spaced, and lie within `t_span`. If None (default), use points 
+		selected by the solver.
 	method : string, optional
         Integration methods are listed on https://pypi.org/project/pyhamsys/ 
 		'BM4' is the default.
@@ -363,9 +367,9 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		Phys. Rev. E 94, 043303
 	"""
 	def _coupling(h:float) -> xp.ndarray:
-		return (xp.array([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]])\
-			  + xp.cos(2 * omega * h) * xp.array([[1, -1, 0, 0], [-1, 1, 0, 0], [0, 0, 1, -1], [0, 0, -1, 1]])\
-			  + xp.sin(2 * omega * h) * xp.array([[0, 0, -1, 1], [0, 0, 1, -1], [1, -1, 0, 0], [-1, 1, 0, 0]])) / 2
+		return (xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])\
+			  + xp.cos(2 * omega * h) * xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]])\
+			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
 
 	def _chi_ext(h, t, y):
 		y_ = xp.split(y, 2)
@@ -373,15 +377,14 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		y_[1] += h * fun(t, y_[0])
 		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
 		y_ = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_, 4)).flatten()
-		return t + h, y_
+		return y_
 		
 	def _chi_ext_star(h, t, y):
-		t += h
 		y_ = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y, 4)).flatten()
 		y_ = xp.split(y_, 2)
 		y_[1] += h * fun(t, y_[0])
 		y_[0] += h * fun(t, y_[1])
-		return t, xp.concatenate((y_[0], y_[1]), axis=None)
+		return xp.concatenate((y_[0], y_[1]), axis=None)
 	
 	y_ = xp.tile(y0, 2)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)

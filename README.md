@@ -96,10 +96,12 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 
 ```[python]
 >>> import numpy as xp
+>>> import matplotlib.pyplot as plt
 >>> from pyhamsys import solve_ivp_sympext
->>> def fun(t,y): x, p = xp.split(y, 2) return xp.concatenate((p, -xp.sin(x)), axis=None)
->>> sol = solve_ivp_sympext(fun, (0, 2*xp.pi), xp.asarray([0, 0.1]), step=1e-2, t_eval=xp.linspace(0, 2*xp.pi, 10))
->>> print(sol.t)
->>> print(sol.y)
->>> print(sol.step)
+>>> def fun(t,y):
+	x, p = xp.split(y, 2)
+	return xp.concatenate((p, -xp.sin(x)), axis=None)
+>>> sol = solve_ivp_sympext(fun, (0, 2*xp.pi), xp.asarray([0, 0.1]), step=1e-2, t_eval=xp.linspace(0, 2*xp.pi, 500))
+>>> plt.plot(sol.y[0], sol.y[1])
+>>> plt.show()
 ```

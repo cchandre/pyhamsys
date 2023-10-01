@@ -307,7 +307,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
-					  method:str='BM4', omega:float=10, command:Callable=None) -> OdeSolution:
+					  method:str='BM4', omega:float=10, command:Callable=None, check_k:bool=False) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -388,6 +388,8 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	
 	y_ = xp.tile(y0, 2)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	y_ = xp.split(sol.y, 4, axis=0)
-	sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
+	y_ = xp.split(sol.y, 4 + non_autonomous, axis=0)
+	sol.y = xp.concatenate(((y_[0] + y_[2 + non_autonomous]) / 2, (y_[1] + y_[3 + non_autonomous]) / 2), axis=0)
+	if non_autonomous:
+		sol.y = xp.concatenate((sol.y, ), axis=0)
 	return sol

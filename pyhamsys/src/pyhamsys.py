@@ -28,7 +28,7 @@
 import numpy as xp
 from scipy.fft import rfft, irfft, rfftfreq
 from scipy.interpolate import interp1d
-from typing import Callable, Union
+from typing import Callable, Union, Tuple
 from scipy.optimize import OptimizeResult
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
@@ -195,7 +195,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	symplectic splitting scheme (see [1]).
 
 	This function numerically integrates a system of ordinary differential
-	equations given an initial value::
+	equations given an initial value:
 
 	dy / dt = {y, H(t, y)}
 	y(t0) = y0
@@ -280,7 +280,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		step = xp.abs((tf - t0)) / xp.ceil(xp.abs((tf - t0)) / step)
 	alpha_s = integrator.alpha_s * step
 
-	def _integrate(t, y):
+	def _integrate(t:float, y:xp.ndarray) -> Tuple[float, xp.ndarray]:
 		for h, st in zip(alpha_s, integrator.alpha_o):
 			y = chi(h, t + h, y) if st==0 else chi_star(h, t, y)
 			t += h
@@ -307,22 +307,22 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
-					  method:str='BM4', omega:float=10, command:Callable=None, check_k:bool=False) -> OdeSolution:
+					  method:str='BM4', omega:float=10, command:Callable=None, nvars:int=None) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
 
 	This function numerically integrates a system of ordinary differential 
-	equations given an initial value::
+	equations given an initial value:
 
 	dy / dt = {y, H(t, y)}
 	y(t0) = y0
 
-	Here t is a 1-D independent variable (time), y(t) is an N-D vector-valued 
-	function (state), and a Hamiltonian H(t, y) and a Poisson bracket {. , .} 
-	determine the differential equations. The goal is to find y(t) 
-	approximately satisfying the differential equations, given an initial value 
-	y(t0)=y0.
+	Here t is a 1-D independent variable (time), y(t) = (q(t), p(t)) is an N-D 
+	vector-valued function (state), and a Hamiltonian H(t, y) and a canonical 
+	Poisson bracket {. , .} determine the differential equations. The goal is 
+	to find y(t) approximately satisfying the differential equations, given an 
+	initial value y(t0)=y0.
 
 	Parameters
 	----------
@@ -371,15 +371,16 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 			  + xp.cos(2 * omega * h) * xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]])\
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
 
-	def _chi_ext(h, t, y):
+	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
+		nvars_ = 4 is nvars==None else nvars
 		y_ = xp.split(y, 2)
 		y_[0] += h * fun(t, y_[1])
 		y_[1] += h * fun(t, y_[0])
 		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
-		y_ = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_, 4)).flatten()
+		y_ = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_, nvars_)).flatten()
 		return y_
 		
-	def _chi_ext_star(h, t, y):
+	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
 		y_ = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y, 4)).flatten()
 		y_ = xp.split(y_, 2)
 		y_[1] += h * fun(t, y_[0])
@@ -388,8 +389,6 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	
 	y_ = xp.tile(y0, 2)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	y_ = xp.split(sol.y, 4 + non_autonomous, axis=0)
-	sol.y = xp.concatenate(((y_[0] + y_[2 + non_autonomous]) / 2, (y_[1] + y_[3 + non_autonomous]) / 2), axis=0)
-	if non_autonomous:
-		sol.y = xp.concatenate((sol.y, ), axis=0)
+	y_ = xp.split(sol.y, 4, axis=0)
+	sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	return sol

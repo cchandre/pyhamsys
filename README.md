@@ -46,7 +46,7 @@ Here *t* is a 1-D independent variable (time), *y*(*t*) is an N-D vector-valued 
 
 The function `solve_ivp_symp` solves an initial value problem using an explicit symplectic integration. The Hamiltonian flow is defined by two functions `chi` and `chi_star` of (*h*, *t*, *y*) (see [2]). 
 
-The function `solve_ivp_sympext` solves an initial value problem using an explicit symplectic approximation obtained by an extension in phase space (see [3]). The Hamiltonian flow is defined by one function `fun` of (*t*, *y*) and one coupling parameter `omega`. 
+The function `solve_ivp_sympext` solves an initial value problem using an explicit symplectic approximation obtained by an extension in phase space (see [3]). The Hamiltonian flow is defined by one function `fun` of (*t*, *y*) and one coupling parameter `omega`. This symplectic approximation works for canonical Poisson brackets and the state vector should be of the form *y* = (*q*, *p*). There is an optional possibility to check the conservation of energy if the system has an explicit time dependence; in that case, the state vector should be *y* = (*q*, *p*, *k*) where *k* is canonically conjugate to time. 
 
 ### Parameters:  
 
@@ -57,7 +57,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y* at time *t*.
 	`chi_star` must return an array of the same shape as `y`.
   - `fun` (for `solve_ivp_sympext`) : callable  
-	Right-hand side of the system: the time derivative of the state *y* at time *t*. i.e., {*y*, *H*(*t*, *y*)}. The calling signature is `fun(t, y)`, where `t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`. `fun` must return an array of the same shape as `y`. 
+	Right-hand side of the system: the time derivative of the state *y* at time *t*. i.e., {*y*, *H*(*t*, *y*)}. The calling signature is `fun(t, y)`, where `t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`. `fun` must return an array of the same shape as `y`. The state vector should be of the form *y* = (*q*, *p*) or, if there is an explicit time dependence in the Hamiltonian and the need to check the conservation of energy, *y* should be of the form *y* = (*q*, *p*, *k*) where *k* is canonically conjugate to time. 
   - `t_span` : 2-member sequence  
 	Interval of integration (*t*<sub>0</sub>, *t*<sub>f</sub>). The solver starts with *t*=*t*<sub>0</sub> and integrates until it reaches *t*=*t*<sub>f</sub>. Both *t*<sub>0</sub> and *t*<sub>f</sub> must be floats or values interpretable by the float conversion function.	
   - `y0` : array_like, shape (n,)  

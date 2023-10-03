@@ -73,6 +73,10 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
    	Coupling parameter in the extended phase space (see [3]). Default = 10.
   - `command` : function of (*t*, *y*)  
 	Function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, or register specific events).
+  - `check_trajs` : int or None, optional
+	Number of trajectories.
+	If *y* = (*q*, *p, *k*), the number of trajectories needs to be specified. 
+	This is used to check the conservation of energy in case the Hamiltonian has an explicit time dependence.
 
 ### Remarks:   
   - Use `solve_ivp_symp` is the Hamiltonian can be split and if each partial flow exp(*h* X<sub>*k*</sub>) can be easily computed. Otherwise use `solve_ivp_sympext`.  

@@ -307,7 +307,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
-					  method:str='BM4', omega:float=10, command:Callable=None, nvars:int=None) -> OdeSolution:
+					  method:str='BM4', omega:float=10, command:Callable=None, check_trajs:int=None) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -318,38 +318,49 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	dy / dt = {y, H(t, y)}
 	y(t0) = y0
 
-	Here t is a 1-D independent variable (time), y(t) = (q(t), p(t)) is an N-D 
-	vector-valued function (state), and a Hamiltonian H(t, y) and a canonical 
-	Poisson bracket {. , .} determine the differential equations. The goal is 
-	to find y(t) approximately satisfying the differential equations, given an 
-	initial value y(t0)=y0.
+	Here t is a 1-D independent variable (time), y(t) is an N-D vector-valued 
+	function (state), and a Hamiltonian H(t, y) and a canonical Poisson bracket
+	{. , .} determine the differential equations. The goal is to find y(t) 
+	approximately satisfying the differential equations, given an initial value 
+	y(t0)=y0.
+	
+	The state y(t) could be of the form (q(t), p(t)) or (q(t), p(t), k(t)). 
+	Here k is a canonically conjugate variable to time, for checking the 
+	conservation of energy (optional). 
 
 	Parameters
 	----------
 	fun : callable
-		Right-hand side of the system: the time derivative of the state y at 
-		time t. i.e., {y, H(t, y)}. The calling signature is `fun(t, y)`, where 
-		`t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`. 
-		`fun` must return an array of the same shape as `y`. 
-	t_span : 2-member sequence
-		Interval of integration (t0, tf). The solver starts with t=t0 and
-		integrates until it reaches t=tf. Both t0 and tf must be floats or 
-		values interpretable by the float conversion function.	
+		Right-hand side of the system: the time derivative of the state y at  
+		time t. i.e., {y, H(t, y)}. The calling signature is `fun(t, y)`, where  
+		`t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`.  
+		y = (q, p) or (q, p, k) where k is conjugate to time (if energy needs  
+		to be ckecked). In that case, specify the number of trajectories  
+		check_trajs.
+		`fun` must return an array of the same shape as `y`.   
+	t_span : 2-member sequence  
+		Interval of integration (t0, tf). The solver starts with t=t0 and  
+		integrates until it reaches t=tf. Both t0 and tf must be floats or   
+		values interpretable by the float conversion function.	 
 	y0 : array_like, shape (n,)
 		Initial state.
 	step : float
 		Step size.
 	t_eval : array_like or None, optional
-		Times at which to store the computed solution, must be sorted and 
-		equally spaced, and lie within `t_span`. If None (default), use points 
+		Times at which to store the computed solution, must be sorted and   
+		equally spaced, and lie within `t_span`. If None (default), use points  
 		selected by the solver.
 	method : string, optional
-        Integration methods are listed on https://pypi.org/project/pyhamsys/ 
+        Integration methods are listed on https://pypi.org/project/pyhamsys/  
 		'BM4' is the default.
 	omega : float, optional
 		Coupling parameter in the extended phase space (see [1])
 	command : function of (t, y) or None, optional
-		Function to be run at each step size.   
+		Function to be run at each step size. 
+	check_trajs: None (default) or int, optional
+		Number of trajectories.
+		If y = (q, p, k), the number of trajectories needs to be specified. 
+		This is used to check the conservation of energy.
 
 	Returns
 	-------
@@ -366,22 +377,35 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		Hamiltonians: Algorithm and long time performance", 
 		Phys. Rev. E 94, 043303
 	"""
+	if len(y0) // check_trajs % 2 == 0:
+		check_trajs = None
+	if check_trajs is not None: 
+		ny, ce0, ce1 = len(y0), len(y0)-check_trajs, 2*len(y0)-check_trajs
+		slices = xp.r_[0:ce0, ny:ce1]
+	
 	def _coupling(h:float) -> xp.ndarray:
 		return (xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])\
 			  + xp.cos(2 * omega * h) * xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]])\
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
 
 	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		nvars_ = 4 is nvars==None else nvars
 		y_ = xp.split(y, 2)
 		y_[0] += h * fun(t, y_[1])
 		y_[1] += h * fun(t, y_[0])
 		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
-		y_ = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_, nvars_)).flatten()
-		return y_
+		if check_trajs is None:
+			return xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_, 4)).flatten()
+		yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_[slices], 4)).flatten()
+		yr = xp.split(yr, 2)
+		return xp.concatenate((yr[0], y_[ce0:ny], yr[1], y_[ce1:]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y, 4)).flatten()
+		if check_trajs is None:
+			yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y, 4)).flatten()
+		else:
+			yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y[slices], 4)).flatten()
+			yr = xp.split(yr, 2)
+			y_ = xp.concatenate((yr[0], y[ce0:ny], yr[1], y[ce1:]), axis=None) 
 		y_ = xp.split(y_, 2)
 		y_[1] += h * fun(t, y_[0])
 		y_[0] += h * fun(t, y_[1])
@@ -389,6 +413,10 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 	
 	y_ = xp.tile(y0, 2)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	y_ = xp.split(sol.y, 4, axis=0)
-	sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
+	if check_trajs is None:
+		y_ = xp.split(sol.y, 4, axis=0)
+		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
+	else:
+		y_ = xp.split(sol.y[slices], 4, axis=0)
+		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2, (sol.y[ce0:ny] + sol.y[ce1:]) / 2), axis=0)
 	return sol

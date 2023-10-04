@@ -102,8 +102,8 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 >>> import matplotlib.pyplot as plt
 >>> from pyhamsys import solve_ivp_sympext
 >>> def fun(t,y):
-	x, p = xp.split(y, 2)
-	return xp.concatenate((p, -xp.sin(x)), axis=None)
+	q, p = xp.split(y, 2)
+	return xp.concatenate((p, -xp.sin(q)), axis=None)
 >>> sol = solve_ivp_sympext(fun, (0, 20), xp.asarray([3, 0]), step=1e-1)
 >>> plt.plot(sol.y[0], sol.y[1])
 >>> plt.show()

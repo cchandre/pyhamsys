@@ -27,7 +27,6 @@
 
 import numpy as xp
 from scipy.fft import rfft, irfft, rfftfreq
-from scipy.interpolate import interp1d
 from typing import Callable, Union, Tuple
 from scipy.optimize import OptimizeResult
 
@@ -395,16 +394,14 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
 		if check_trajs is None:
 			return xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_, 4)).flatten()
-		yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_[slices], 4)).flatten()
-		yr = xp.split(yr, 2)
+		yr = xp.split(xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_[slices], 4)).flatten(), 2)
 		return xp.concatenate((yr[0], y_[ce0:ny], yr[1], y_[ce1:]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
 		if check_trajs is None:
 			yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y, 4)).flatten()
 		else:
-			yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y[slices], 4)).flatten()
-			yr = xp.split(yr, 2)
+			yr = xp.split(xp.einsum('ij,j...->i...', _coupling(h), xp.split(y[slices], 4)).flatten(), 2)
 			y_ = xp.concatenate((yr[0], y[ce0:ny], yr[1], y[ce1:]), axis=None) 
 		y_ = xp.split(y_, 2)
 		y_[1] += h * fun(t, y_[0])

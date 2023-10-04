@@ -57,7 +57,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y* at time *t*.
 	`chi_star` must return an array of the same shape as `y`.
   - `fun` (for `solve_ivp_sympext`) : callable  
-	Right-hand side of the system: the time derivative of the state *y* at time *t*. i.e., {*y*, *H*(*t*, *y*)}. The calling signature is `fun(t, y)`, where `t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`. `fun` must return an array of the same shape as `y`. The state vector should be of the form *y* = (*q*, *p*) or, if there is an explicit time dependence in the Hamiltonian and the need to check the conservation of energy, *y* should be of the form *y* = (*q*, *p*, *k*) where *k* is canonically conjugate to time. 
+	Right-hand side of the system: the time derivative of the state *y* at time *t*. i.e., {*y*, *H*(*t*, *y*)}. The calling signature is `fun(t, y)`, where `t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`. `fun` must return an array of the same shape as `y`. The state vector should be of the form *y* = (*q*, *p*) or, if there is an explicit time dependence in the Hamiltonian and the need to check the conservation of energy, *y* should be of the form *y* = (*q*, *p*, *k*) where *k* is canonically conjugate to time. In that case, the number of computed trajectories `check_trajs` needs to be specified. 
   - `t_span` : 2-member sequence  
 	Interval of integration (*t*<sub>0</sub>, *t*<sub>f</sub>). The solver starts with *t*=*t*<sub>0</sub> and integrates until it reaches *t*=*t*<sub>f</sub>. Both *t*<sub>0</sub> and *t*<sub>f</sub> must be floats or values interpretable by the float conversion function.	
   - `y0` : array_like, shape (n,)  
@@ -75,7 +75,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, or register specific events).
   - `check_trajs` : int or None, optional
 	Number of trajectories.
-	If *y* = (*q*, *p, *k*), the number of trajectories needs to be specified. 
+	If *y* = (*q*, *p*, *k*), the number of trajectories needs to be specified. 
 	This is used to check the conservation of energy in case the Hamiltonian has an explicit time dependence.
 
 ### Remarks:   

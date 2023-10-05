@@ -29,6 +29,45 @@ import numpy as xp
 from scipy.fft import rfft, irfft, rfftfreq
 from typing import Callable, Union, Tuple
 from scipy.optimize import OptimizeResult
+import sympy as sp
+	
+def eqns_of_motion(hamiltonian:Callable, ndof:int=1, output:bool=False) -> Callable:
+	"""
+	Determine Hamilton's equations of motion from a given Hamiltonian 
+	H(q, p, t) where q and p are N-D vector (resp., positions and momenta).
+	The output is a NumPy function providing the equations of motion ready to
+	use in solve_ivp and solve_ivp_sympext. 
+
+	Parameters
+	----------
+	hamiltonian : callable
+		Function H(q, p, t) expressed with SymPy functions.
+		`hamiltonian` must return a scalar.
+	ndof : int
+		Number of degrees of freedom, i.e., number of positions.
+	output: bool, optional
+		If True, displays the equations of motion. Default is False.
+
+	Returns
+	-------
+	Function of (t, y) where y = (q, p) returning (dH/dp, -dH/dq). If there is
+	an explicit dependence on time, this function returns 
+	(dH/dp, -dH/dq, -dH/dt). The input y and the output are ndarrays.  
+	"""
+	q = sp.symbols('q0:%d'%ndof) if ndof>=2 else sp.Symbol('q')
+	p = sp.symbols('p0:%d'%ndof) if ndof>=2 else sp.Symbol('p')
+	t = sp.Symbol('t')
+	eqn = sp.simplify(sp.derive_by_array(hamiltonian(q, p, t), [q, p]))
+	eqn = sp.flatten([eqn[1], -eqn[0]])
+	if sp.diff(hamiltonian(q, p, t), t)!=0:
+		eqn += [-sp.simplify(sp.diff(hamiltonian(q, p, t), t))]	
+	if output:
+		print(eqn)
+	eqn = sp.lambdify([q, p, t], eqn)
+	def fun(t, y):
+		y_ = xp.split(y.flatten(), 2)
+		return xp.asarray(eqn(y_[0], y_[1], t)).flatten()
+	return fun
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)

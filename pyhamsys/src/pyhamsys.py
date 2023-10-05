@@ -43,9 +43,9 @@ def eqns_of_motion(hamiltonian:Callable, ndof:int=1, output:bool=False) -> Calla
 	hamiltonian : callable
 		Function H(q, p, t) expressed with SymPy functions.
 		`hamiltonian` must return a scalar.
-	ndof : int
-		Number of degrees of freedom, i.e., number of positions.
-	output: bool, optional
+	ndof : int, optional
+		Number of degrees of freedom, i.e., number of positions. Default is 1.
+	output : bool, optional
 		If True, displays the equations of motion. Default is False.
 
 	Returns

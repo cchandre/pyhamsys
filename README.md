@@ -108,3 +108,34 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 >>> plt.plot(sol.y[0], sol.y[1])
 >>> plt.show()
 ```
+---
+
+## Determination of the equations of motion
+
+Determine Hamilton's equations of motion from a given Hamiltonian *H*(*q*, *p*, *t*) where *q* and *p* are N-D vector (resp., positions and momenta).
+The output is a NumPy function providing the equations of motion ready to use in `solve_ivp` and `solve_ivp_sympext`. 
+
+### Parameters
+
+  - `hamiltonian` : callable
+	Function *H*(*q*, *p*, *t*) expressed with SymPy functions.
+	`hamiltonian` must return a scalar.
+  - `ndof` : int, optional
+	Number of degrees of freedom, i.e., number of positions. Default is 1.
+  - `output` : bool, optional
+	If True, displays the equations of motion. Default is False.
+
+### Returns
+
+Function of (*t*, *y*) where *y* = (*q*, *p*) returning (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). If there is an explicit dependence on time, this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*, -&part;*H*/&part;*t*). The input *y* and the output are ndarrays. 
+
+### Example
+
+```python
+>>> import numpy as xp
+>>> import sympy as sp
+>>> from pyhamsys import eqns_of_motion
+>>> hamiltonian = lambda q, p, t: p**2 / 2 + 1 - sp.cos(q)
+>>> my_eqns = eqns_of_motion(hamiltonian, output=True)
+>>> print(my_eqns(0, xp.array([xp.pi, 1])))
+```

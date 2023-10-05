@@ -135,7 +135,7 @@ Function of (*t*, *y*) where *y* = (*q*, *p*) returning (&part;*H*/&part;*p*, -&
 >>> import numpy as xp
 >>> import sympy as sp
 >>> from pyhamsys import eqns_of_motion
->>> H = lambda q, p, t: p**2 / 2 + 1 - sp.cos(q)
->>> my_eqns = eqns_of_motion(H, output=True)
+>>> hamiltonian = lambda q, p, t: p**2 / 2 + 1 - sp.cos(q)
+>>> my_eqns = eqns_of_motion(hamiltonian, output=True)
 >>> print(my_eqns(0, xp.array([xp.pi, 1])))
 ```

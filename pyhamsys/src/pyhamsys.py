@@ -30,44 +30,42 @@ from scipy.fft import rfft, irfft, rfftfreq
 from typing import Callable, Union, Tuple
 from scipy.optimize import OptimizeResult
 import sympy as sp
-	
-def eqns_of_motion(hamiltonian:Callable, ndof:int=1, output:bool=False) -> Callable:
-	"""
-	Determine Hamilton's equations of motion from a given Hamiltonian 
-	H(q, p, t) where q and p are N-D vector (resp., positions and momenta).
-	The output is a NumPy function providing the equations of motion ready to
-	use in solve_ivp and solve_ivp_sympext. 
 
-	Parameters
-	----------
-	hamiltonian : callable
-		Function H(q, p, t) expressed with SymPy functions.
-		`hamiltonian` must return a scalar.
-	ndof : int, optional
-		Number of degrees of freedom, i.e., number of positions. Default is 1.
-	output : bool, optional
-		If True, displays the equations of motion. Default is False.
+class HamSys:
+	def __init__(self, H:Callable=None, ndof:int=None, check_k:bool=False) -> None:
+		self.ndof = ndof
+		self.time_dependent = False
+		self.pos, self.mom = [], []
+		if H is not None:
+			self.H = H
+			q = sp.symbols('q0:%d'%ndof) if ndof>=2 else sp.Symbol('q')
+			p = sp.symbols('p0:%d'%ndof) if ndof>=2 else sp.Symbol('p')
+			t = sp.Symbol('t')
+			eqn = sp.simplify(sp.derive_by_array(H(q, p, t), [q, p]))
+			eqn = sp.flatten([eqn[1], -eqn[0]])
+			self.eqn_output = eqn
+			self.eqn = sp.lambdify([q, p, t], eqn)
+			if sp.diff(H(q, p, t), t)!=0 and check_k:
+				self.time_dependent = True
+				eqn_t = -sp.simplify(sp.diff(H(q, p, t), t))
+				self.eqn_t = sp.lambdify([q, p, t], eqn_t)
 
-	Returns
-	-------
-	Function of (t, y) where y = (q, p) returning (dH/dp, -dH/dq). If there is
-	an explicit dependence on time, this function returns 
-	(dH/dp, -dH/dq, -dH/dt). The input y and the output are ndarrays.  
-	"""
-	q = sp.symbols('q0:%d'%ndof) if ndof>=2 else sp.Symbol('q')
-	p = sp.symbols('p0:%d'%ndof) if ndof>=2 else sp.Symbol('p')
-	t = sp.Symbol('t')
-	eqn = sp.simplify(sp.derive_by_array(hamiltonian(q, p, t), [q, p]))
-	eqn = sp.flatten([eqn[1], -eqn[0]])
-	if sp.diff(hamiltonian(q, p, t), t)!=0:
-		eqn += [-sp.simplify(sp.diff(hamiltonian(q, p, t), t))]	
-	if output:
-		print(eqn)
-	eqn = sp.lambdify([q, p, t], eqn)
-	def fun(t, y):
+	def split(self, y:xp.ndarray, by_var:bool=False, ext:bool=False):
+		if not self.time_dependent:
+			return xp.split(y, 2 + 2 * by_var * ext)
+		ndof = self.ndof if not ext else 2 * self.ndof
+		np = ndof * len(y) // (2 * ndof + 1)
+		if not by_var:
+			return y[:np], y[np:2*np], y[2*np:]
+		return y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]
+
+	def vector_field(self, t, y):
 		y_ = xp.split(y.flatten(), 2)
-		return xp.asarray(eqn(y_[0], y_[1], t)).flatten()
-	return fun
+		return xp.asarray(self.eqn(y_[0], y_[1], t)).flatten()
+
+	def vector_field_k(self, t, y):
+		y_ = xp.split(y.flatten(), 2)
+		return xp.asarray(self.eqn_t(y_[0], y_[1], t)).flatten()
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)
@@ -344,8 +342,8 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	t_vec = xp.asarray(t_vec)
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
-def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
-					  method:str='BM4', omega:float=10, command:Callable=None, check_trajs:int=None) -> OdeSolution:
+def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
+					  method:str='BM4', omega:float=10, command:Callable=None) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -368,20 +366,15 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 
 	Parameters
 	----------
-	fun : callable
-		Right-hand side of the system: the time derivative of the state y at  
-		time t. i.e., {y, H(t, y)}. The calling signature is `fun(t, y)`, where  
-		`t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`.  
-		y = (q, p) or (q, p, k) where k is conjugate to time (if energy needs  
-		to be ckecked). In that case, specify the number of trajectories  
-		check_trajs.
-		`fun` must return an array of the same shape as `y`.   
+	hs : HamSys
+		Hamiltonian system containing the Hamiltonian vector field.  
 	t_span : 2-member sequence  
 		Interval of integration (t0, tf). The solver starts with t=t0 and  
 		integrates until it reaches t=tf. Both t0 and tf must be floats or   
 		values interpretable by the float conversion function.	 
-	y0 : array_like, shape (n,)
-		Initial state.
+	y0 : array_like, shape (2n,)
+		Initial state y0=(q0, p0) where q0 are the initial positions and p0 the
+		initial momenta.
 	step : float
 		Step size.
 	t_eval : array_like or None, optional
@@ -395,17 +388,13 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		Coupling parameter in the extended phase space (see [1])
 	command : function of (t, y) or None, optional
 		Function to be run at each step size. 
-	check_trajs: None (default) or int, optional
-		Number of trajectories.
-		If y = (q, p, k), the number of trajectories needs to be specified. 
-		This is used to check the conservation of energy.
 
 	Returns
 	-------
 	Bunch object with the following fields defined:
 	t : ndarray, shape (n_points,)  
 		Time points.
-	y : ndarray, shape (n, n_points)  
+	y : ndarray, shape (2n, n_points)  
 		Values of the solution at `t`.
 	step : step size used in the computation
 
@@ -415,11 +404,6 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 		Hamiltonians: Algorithm and long time performance", 
 		Phys. Rev. E 94, 043303
 	"""
-	if len(y0) // check_trajs % 2 == 0:
-		check_trajs = None
-	if check_trajs is not None: 
-		ny, ce0, ce1 = len(y0), len(y0)-check_trajs, 2*len(y0)-check_trajs
-		slices = xp.r_[0:ce0, ny:ce1]
 	
 	def _coupling(h:float) -> xp.ndarray:
 		return (xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])\
@@ -427,32 +411,36 @@ def solve_ivp_sympext(fun:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_e
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
 
 	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = xp.split(y, 2)
-		y_[0] += h * fun(t, y_[1])
-		y_[1] += h * fun(t, y_[0])
-		y_ = xp.concatenate((y_[0], y_[1]), axis=None)
-		if check_trajs is None:
-			return xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_, 4)).flatten()
-		yr = xp.split(xp.einsum('ij,j...->i...', _coupling(h), xp.split(y_[slices], 4)).flatten(), 2)
-		return xp.concatenate((yr[0], y_[ce0:ny], yr[1], y_[ce1:]), axis=None) 
+		y_ = hs.split(y, ext=True)
+		if hs.time_dependent:
+			y_[2] += h * (hs.vector_field_k(t, y_[0]) + hs.vector_field_k(t, y_[1]))
+		y_[0] += h * hs.vector_field(t, y_[1])
+		y_[1] += h * hs.vector_field(t, y_[0])
+		y_ = xp.concatenate([y_[_] for _ in len(y_)], axis=None)
+		yr = xp.einsum('ij,j...->i...', _coupling(h), hs.split(y_, by_var=True, ext=True)[:4]).flatten()
+		if not hs.time_dependent:
+			return yr
+		return xp.concatenate((yr, y_[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		if check_trajs is None:
-			yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(y, 4)).flatten()
-		else:
-			yr = xp.split(xp.einsum('ij,j...->i...', _coupling(h), xp.split(y[slices], 4)).flatten(), 2)
-			y_ = xp.concatenate((yr[0], y[ce0:ny], yr[1], y[ce1:]), axis=None) 
-		y_ = xp.split(y_, 2)
-		y_[1] += h * fun(t, y_[0])
-		y_[0] += h * fun(t, y_[1])
-		return xp.concatenate((y_[0], y_[1]), axis=None)
+		y_ = hs.split(y, by_var=True, ext=True)
+		yr = xp.einsum('ij,j...->i...', _coupling(h), y_[:4]).flatten()
+		if hs.time_dependent:
+			yr = xp.concatenate((yr, y_[-1]), axis=None) 
+		y_ = hs.split(yr, ext=True)
+		if hs.time_dependent:
+			y_[2] += h * (hs.vector_field_k(t, y_[0]) + hs.vector_field_k(t, y_[1]))
+		y_[1] += h * hs.vector_field(t, y_[0])
+		y_[0] += h * hs.vector_field(t, y_[1])
+		return xp.concatenate([y_[_] for _ in len(y_)], axis=None)
 	
 	y_ = xp.tile(y0, 2)
+	if hs.time_dependent:
+		y_ = xp.concatenate((y_, xp.zeros(len(y0)//2)), axis=None)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	if check_trajs is None:
-		y_ = xp.split(sol.y, 4, axis=0)
+	y_ = hs.split(sol.y, by_var=True, ext=True)
+	if not hs.time_dependent:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	else:
-		y_ = xp.split(sol.y[slices], 4, axis=0)
-		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2, (sol.y[ce0:ny] + sol.y[ce1:]) / 2), axis=0)
+		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2, y_[4] / 2), axis=0)
 	return sol

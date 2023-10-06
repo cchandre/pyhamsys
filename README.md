@@ -127,7 +127,7 @@ The output is a NumPy function providing the equations of motion ready to use in
 
 ### Returns
 
-Function of (*t*, *y*) where *y* = (*q*, *p*) returning (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). If there is an explicit dependence on time, this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*, -&part;*H*/&part;*t*). The input *y* and the output are ndarrays. 
+Function of (*t*, *y*) where *y* = (*q*, *p*) returning (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). If there is an explicit dependence on time, the state vector is *y* = (*q*, *p*, *k*) where *k* is concanically conjugate to time. The function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*, -&part;*H*/&part;*t*). The input *y* and the output are ndarrays, and the output is of the same size as *y*. 
 
 ### Example
 

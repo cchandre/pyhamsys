@@ -32,26 +32,17 @@ from scipy.optimize import OptimizeResult
 import sympy as sp
 
 class HamSys:
-	def __init__(self, H:Callable=None, ndof:int=None, check_k:bool=False) -> None:
-		self.ndof = ndof
-		self.time_dependent = False
+	def __init__(self, ndof:float=None, check_energy:bool=False) -> None:
+		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
+			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
+		self.ndof = int(ndof)
+		time_dependent = bool(str(ndof).count('.5'))
+		self.check_energy = check_energy * time_dependent
+		self.vector_field, self.vector_field_k = None, None
 		self.pos, self.mom = [], []
-		if H is not None:
-			self.H = H
-			q = sp.symbols('q0:%d'%ndof) if ndof>=2 else sp.Symbol('q')
-			p = sp.symbols('p0:%d'%ndof) if ndof>=2 else sp.Symbol('p')
-			t = sp.Symbol('t')
-			eqn = sp.simplify(sp.derive_by_array(H(q, p, t), [q, p]))
-			eqn = sp.flatten([eqn[1], -eqn[0]])
-			self.eqn_output = eqn
-			self.eqn = sp.lambdify([q, p, t], eqn)
-			if sp.diff(H(q, p, t), t)!=0 and check_k:
-				self.time_dependent = True
-				eqn_t = -sp.simplify(sp.diff(H(q, p, t), t))
-				self.eqn_t = sp.lambdify([q, p, t], eqn_t)
 
 	def split(self, y:xp.ndarray, by_var:bool=False, ext:bool=False):
-		if not self.time_dependent:
+		if not self.check_energy:
 			return xp.split(y, 2 + 2 * by_var * ext)
 		ndof = self.ndof if not ext else 2 * self.ndof
 		np = ndof * len(y) // (2 * ndof + 1)
@@ -59,13 +50,33 @@ class HamSys:
 			return y[:np], y[np:2*np], y[2*np:]
 		return y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]
 
-	def vector_field(self, t, y):
-		y_ = xp.split(y.flatten(), 2)
-		return xp.asarray(self.eqn(y_[0], y_[1], t)).flatten()
+	def compute_vector_field(self, hamiltonian:Callable=None, output:bool=False):
+		q = sp.symbols('q0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('q')
+		p = sp.symbols('p0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('p')
+		t = sp.Symbol('t')
+		eqn = sp.simplify(sp.derive_by_array(hamiltonian(q, p, t), [q, p]))
+		eqn = sp.flatten([eqn[1], -eqn[0]])
+		if output:
+			print('vector_field : ', eqn)
+		eqn = sp.lambdify([q, p, t], eqn)
 
-	def vector_field_k(self, t, y):
-		y_ = xp.split(y.flatten(), 2)
-		return xp.asarray(self.eqn_t(y_[0], y_[1], t)).flatten()
+		def vector_field(t, y):
+			y_ = xp.split(y.flatten(), 2)
+			return xp.asarray(self.eqn(y_[0], y_[1], t)).flatten()
+		
+		if not self.check_energy:
+			return vector_field, None
+		
+		eqn_t = -sp.simplify(sp.diff(hamiltonian(q, p, t), t))
+		if output:
+			print('vector_field_k : ', eqn_t)
+		eqn_t = sp.lambdify([q, p, t], eqn_t)
+
+		def vector_field_k(t, y):
+			y_ = xp.split(y.flatten(), 2)
+			return xp.asarray(eqn_t(y_[0], y_[1], t)).flatten()
+		
+		return vector_field, vector_field_k
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)
@@ -412,34 +423,34 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 
 	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
 		y_ = hs.split(y, ext=True)
-		if hs.time_dependent:
+		if hs.check_energy:
 			y_[2] += h * (hs.vector_field_k(t, y_[0]) + hs.vector_field_k(t, y_[1]))
 		y_[0] += h * hs.vector_field(t, y_[1])
 		y_[1] += h * hs.vector_field(t, y_[0])
-		y_ = xp.concatenate([y_[_] for _ in len(y_)], axis=None)
-		yr = xp.einsum('ij,j...->i...', _coupling(h), hs.split(y_, by_var=True, ext=True)[:4]).flatten()
-		if not hs.time_dependent:
+		yr = xp.concatenate([y_[_] for _ in len(y_)], axis=None)
+		yr = xp.einsum('ij,j...->i...', _coupling(h), hs.split(yr, by_var=True, ext=True)[:4]).flatten()
+		if not hs.check_energy:
 			return yr
 		return xp.concatenate((yr, y_[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
 		y_ = hs.split(y, by_var=True, ext=True)
 		yr = xp.einsum('ij,j...->i...', _coupling(h), y_[:4]).flatten()
-		if hs.time_dependent:
+		if hs.check_energy:
 			yr = xp.concatenate((yr, y_[-1]), axis=None) 
 		y_ = hs.split(yr, ext=True)
-		if hs.time_dependent:
+		if hs.check_energy:
 			y_[2] += h * (hs.vector_field_k(t, y_[0]) + hs.vector_field_k(t, y_[1]))
 		y_[1] += h * hs.vector_field(t, y_[0])
 		y_[0] += h * hs.vector_field(t, y_[1])
 		return xp.concatenate([y_[_] for _ in len(y_)], axis=None)
 	
 	y_ = xp.tile(y0, 2)
-	if hs.time_dependent:
+	if hs.check_energy:
 		y_ = xp.concatenate((y_, xp.zeros(len(y0)//2)), axis=None)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
 	y_ = hs.split(sol.y, by_var=True, ext=True)
-	if not hs.time_dependent:
+	if not hs.check_energy:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	else:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2, y_[4] / 2), axis=0)

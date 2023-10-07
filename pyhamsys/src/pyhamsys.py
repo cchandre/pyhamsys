@@ -48,6 +48,14 @@ class HamSys:
 		if not by_var:
 			return y[:np], y[np:2*np], y[2*np:]
 		return y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]
+	
+	def get_positions(self, y:xp.ndarray):
+		y_ = self.split(y, by_var=True)
+		return y_[0]
+	
+	def get_momenta(self, y:xp.ndarray):
+		y_ = self.split(y, by_var=True)
+		return y_[1]
 
 	def compute_vector_field(self, hamiltonian:Callable, output:bool=False):
 		q = sp.symbols('q0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('q')
@@ -359,7 +367,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	symplectic approximation obtained by an extension in phase space (see [1]).
 
 	This function numerically integrates a system of ordinary differential 
-	equations given an initial value:
+	equations in canonical coordinates given an initial value:
 
 	dy / dt = {y, H(t, y)}
 	y(t0) = y0
@@ -378,6 +386,9 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	----------
 	hs : HamSys
 		Hamiltonian system containing the Hamiltonian vector field.  
+		The vector field `vector_field` should be specified. If there is an 
+		explicit time dependence and the conservation of energy should be 
+		checked, `vector_field_k` should be specified. 
 	t_span : 2-member sequence  
 		Interval of integration (t0, tf). The solver starts with t=t0 and  
 		integrates until it reaches t=tf. Both t0 and tf must be floats or   
@@ -404,7 +415,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	Bunch object with the following fields defined:
 	t : ndarray, shape (n_points,)  
 		Time points.
-	y : ndarray, shape (2n, n_points)  
+	y : ndarray, shape (n, n_points)  
 		Values of the solution at `t`.
 	step : step size used in the computation
 
@@ -430,13 +441,13 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		yr = xp.einsum('ij,j...->i...', _coupling(h), hs.split(yr, by_var=True, ext=True)[:4]).flatten()
 		if not hs.check_energy:
 			return yr
-		return xp.concatenate((yr, y_[-1]), axis=None) 
+		return xp.concatenate((yr, y_[2]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
 		y_ = hs.split(y, by_var=True, ext=True)
 		yr = xp.einsum('ij,j...->i...', _coupling(h), y_[:4]).flatten()
 		if hs.check_energy:
-			yr = xp.concatenate((yr, y_[-1]), axis=None) 
+			yr = xp.concatenate((yr, y_[2]), axis=None) 
 		y_ = hs.split(yr, ext=True)
 		if hs.check_energy:
 			y_[2] += h * (hs.vector_field_k(t, y_[0]) + hs.vector_field_k(t, y_[1]))

@@ -39,7 +39,6 @@ class HamSys:
 		time_dependent = bool(str(ndof).count('.5'))
 		self.check_energy = check_energy * time_dependent
 		self.vector_field, self.vector_field_k = None, None
-		self.pos, self.mom = [], []
 
 	def split(self, y:xp.ndarray, by_var:bool=False, ext:bool=False):
 		if not self.check_energy:
@@ -50,7 +49,7 @@ class HamSys:
 			return y[:np], y[np:2*np], y[2*np:]
 		return y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]
 
-	def compute_vector_field(self, hamiltonian:Callable=None, output:bool=False):
+	def compute_vector_field(self, hamiltonian:Callable, output:bool=False):
 		q = sp.symbols('q0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('q')
 		p = sp.symbols('p0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('p')
 		t = sp.Symbol('t')
@@ -445,6 +444,10 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		y_[0] += h * hs.vector_field(t, y_[1])
 		return xp.concatenate([y_[_] for _ in len(y_)], axis=None)
 	
+	if hs.vector_field is None:
+		raise ValueError("'vector_field' must be provided.")
+	if hs.check_energy and hs.vector_field_k is None:
+		raise ValueError("In order to check energy for a time-dependent system, 'vector_field_k' must be provided.")
 	y_ = xp.tile(y0, 2)
 	if hs.check_energy:
 		y_ = xp.concatenate((y_, xp.zeros(len(y0)//2)), axis=None)

@@ -40,21 +40,21 @@ class HamSys:
 		self.check_energy = check_energy * time_dependent
 		self.vector_field, self.vector_field_k = None, None
 
-	def split(self, y:xp.ndarray, by_var:bool=False, ext:bool=False):
+	def split(self, y:xp.ndarray, by_var:bool=False, ext:bool=True):
 		if not self.check_energy:
 			return xp.split(y, 2 + 2 * by_var * ext)
 		ndof = self.ndof if not ext else 2 * self.ndof
 		np = ndof * len(y) // (2 * ndof + 1)
 		if not by_var:
-			return y[:np], y[np:2*np], y[2*np:]
-		return y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]
+			return [y[:np], y[np:2*np], y[2*np:]]
+		return [y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]]
 	
 	def get_positions(self, y:xp.ndarray):
-		y_ = self.split(y, by_var=True)
+		y_ = self.split(y, by_var=True, ext=False)
 		return y_[0]
 	
 	def get_momenta(self, y:xp.ndarray):
-		y_ = self.split(y, by_var=True)
+		y_ = self.split(y, by_var=True, ext=False)
 		return y_[1]
 
 	def compute_vector_field(self, hamiltonian:Callable, output:bool=False):
@@ -415,8 +415,8 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	Bunch object with the following fields defined:
 	t : ndarray, shape (n_points,)  
 		Time points.
-	y : ndarray, shape (n, n_points)  
-		Values of the solution at `t`.
+	y : ndarray, shape (m, n_points)  
+		Values y(t) = (q(t), p(t)) or (q(t), p(t), k(t)) at `t`.
 	step : step size used in the computation
 
 	References
@@ -432,28 +432,33 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
 
 	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs.split(y, ext=True)
-		if hs.check_energy:
-			y_[2] += h * (hs.vector_field_k(t, y_[0]) + hs.vector_field_k(t, y_[1]))
-		y_[0] += h * hs.vector_field(t, y_[1])
+		y_ = hs.split(y)
 		y_[1] += h * hs.vector_field(t, y_[0])
-		yr = xp.concatenate([y_[_] for _ in len(y_)], axis=None)
-		yr = xp.einsum('ij,j...->i...', _coupling(h), hs.split(yr, by_var=True, ext=True)[:4]).flatten()
+		if hs.check_energy:
+			y_[-1] += h * hs.vector_field_k(t, y_[0])
+		y_[0] += h * hs.vector_field(t, y_[1])
+		if hs.check_energy:
+			y_[-1] += h * hs.vector_field_k(t, y_[1])
+		yr = xp.concatenate((y_[0], y_[1]), axis=None)
+		yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(yr, 4)).flatten()
 		if not hs.check_energy:
 			return yr
-		return xp.concatenate((yr, y_[2]), axis=None) 
+		return xp.concatenate((yr, y_[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs.split(y, by_var=True, ext=True)
-		yr = xp.einsum('ij,j...->i...', _coupling(h), y_[:4]).flatten()
+		y_ = hs.split(y, by_var=True)
+		yr = y_ if not hs.check_energy else y_[:-1]
+		yr = xp.einsum('ij,j...->i...', _coupling(h), yr).flatten()
 		if hs.check_energy:
-			yr = xp.concatenate((yr, y_[2]), axis=None) 
-		y_ = hs.split(yr, ext=True)
-		if hs.check_energy:
-			y_[2] += h * (hs.vector_field_k(t, y_[0]) + hs.vector_field_k(t, y_[1]))
-		y_[1] += h * hs.vector_field(t, y_[0])
+			yr = xp.concatenate((yr, y_[-1]), axis=None) 
+		y_ = hs.split(yr)
 		y_[0] += h * hs.vector_field(t, y_[1])
-		return xp.concatenate([y_[_] for _ in len(y_)], axis=None)
+		if hs.check_energy:
+			y_[-1] += h * hs.vector_field_k(t, y_[1])
+		y_[1] += h * hs.vector_field(t, y_[0])
+		if hs.check_energy:
+			y_[-1] += h * hs.vector_field_k(t, y_[0])
+		return xp.concatenate([_ for _ in y_], axis=None)
 	
 	if hs.vector_field is None:
 		raise ValueError("'vector_field' must be provided.")
@@ -461,11 +466,11 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		raise ValueError("In order to check energy for a time-dependent system, 'vector_field_k' must be provided.")
 	y_ = xp.tile(y0, 2)
 	if hs.check_energy:
-		y_ = xp.concatenate((y_, xp.zeros(len(y0)//2)), axis=None)
+		y_ = xp.concatenate((y_, xp.zeros(len(y0)//(2*hs.ndof) )), axis=None)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	y_ = hs.split(sol.y, by_var=True, ext=True)
+	y_ = hs.split(sol.y, by_var=True)
 	if not hs.check_energy:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	else:
-		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2, y_[4] / 2), axis=0)
+		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2, y_[-1] / 2), axis=0)
 	return sol

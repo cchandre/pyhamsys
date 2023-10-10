@@ -32,7 +32,7 @@ from scipy.optimize import OptimizeResult
 import sympy as sp
 
 class HamSys:
-	def __init__(self, ndof:float=None, check_energy:bool=False) -> None:
+	def __init__(self, ndof:float=1, check_energy:bool=False) -> None:
 		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
 			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
 		self.ndof = int(ndof)
@@ -40,7 +40,7 @@ class HamSys:
 		self.check_energy = check_energy * time_dependent
 		self.vector_field, self.vector_field_k = None, None
 
-	def split(self, y:xp.ndarray, by_var:bool=False, ext:bool=True):
+	def _split(self, y:xp.ndarray, by_var:bool=False, ext:bool=True):
 		if not self.check_energy:
 			return xp.split(y, 2 + 2 * by_var * ext)
 		ndof = self.ndof if not ext else 2 * self.ndof
@@ -50,18 +50,18 @@ class HamSys:
 		return [y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]]
 	
 	def get_positions(self, y:xp.ndarray):
-		y_ = self.split(y, by_var=True, ext=False)
+		y_ = self._split(y, by_var=True, ext=False)
 		return y_[0]
 	
 	def get_momenta(self, y:xp.ndarray):
-		y_ = self.split(y, by_var=True, ext=False)
+		y_ = self._split(y, by_var=True, ext=False)
 		return y_[1]
 
 	def compute_vector_field(self, hamiltonian:Callable, output:bool=False):
 		q = sp.symbols('q0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('q')
 		p = sp.symbols('p0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('p')
 		t = sp.Symbol('t')
-		eqn = sp.simplify(sp.derive_by_array(hamiltonian(q, p, t), [q, p]))
+		eqn = sp.simplify(sp.derive_by_array(hamiltonian(q, p, t), [q, p]).doit())
 		eqn = sp.flatten([eqn[1], -eqn[0]])
 		if output:
 			print('vector_field : ', eqn)
@@ -432,7 +432,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
 
 	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs.split(y)
+		y_ = hs._split(y)
 		y_[1] += h * hs.vector_field(t, y_[0])
 		if hs.check_energy:
 			y_[-1] += h * hs.vector_field_k(t, y_[0])
@@ -446,12 +446,12 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		return xp.concatenate((yr, y_[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs.split(y, by_var=True)
+		y_ = hs._split(y, by_var=True)
 		yr = y_ if not hs.check_energy else y_[:-1]
 		yr = xp.einsum('ij,j...->i...', _coupling(h), yr).flatten()
 		if hs.check_energy:
 			yr = xp.concatenate((yr, y_[-1]), axis=None) 
-		y_ = hs.split(yr)
+		y_ = hs._split(yr)
 		y_[0] += h * hs.vector_field(t, y_[1])
 		if hs.check_energy:
 			y_[-1] += h * hs.vector_field_k(t, y_[1])
@@ -468,7 +468,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	if hs.check_energy:
 		y_ = xp.concatenate((y_, xp.zeros(len(y0)//(2*hs.ndof) )), axis=None)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	y_ = hs.split(sol.y, by_var=True)
+	y_ = hs._split(sol.y, by_var=True)
 	if not hs.check_energy:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	else:

@@ -35,9 +35,30 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     - `ABA864` (order (8,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
     - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
     
-All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator.
+All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator. These integrators are used in the functions `solve_ivp_symp` and `solve_ivp_sympext` by specifying the entry `method` (default is `BM4`). 
 
-Usage: *integrator* = SymplecticIntegrator(*name*) where *name* is one of the names listed above. 
+### Example
+
+```python
+>>> from pyhamsys import SymplecticIntegrator 
+>>> integrator = SymplecticIntegrator('BM4')
+```
+
+----
+## HamSys class
+
+
+
+
+### Example
+```python
+>>> import sympy as sp
+>>> from pyhamsys import HamSys
+>>> hs = HamSys()
+>>> hamiltonian = lambda q, p, t: p**2 / 2 + 1 - sp.cos(q)
+>>> hs.compute_vector_field(hamiltonian, output=True)
+```
+
 
 The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value problem for a Hamiltonian system using an element of the class SymplecticIntegrator, an explicit symplectic splitting scheme (see [1]). These functions numerically integrate a system of ordinary differential equations given an initial value:  
 	&nbsp; d*y* / d*t* = {*y*, *H*(*t*, *y*)}  

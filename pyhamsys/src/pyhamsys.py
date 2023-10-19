@@ -38,7 +38,6 @@ class HamSys:
 		self.ndof = int(ndof)
 		time_dependent = bool(str(ndof).count('.5'))
 		self.check_energy = check_energy * time_dependent
-		self.vector_field, self.vector_field_k = None, None
 
 	def _split(self, y:xp.ndarray, by_var:bool=False, ext:bool=True):
 		if not self.check_energy:
@@ -56,8 +55,12 @@ class HamSys:
 	def get_momenta(self, y:xp.ndarray):
 		y_ = self._split(y, by_var=True, ext=False)
 		return y_[1]
+	
+	def _create_function(self, t, y, eqn):
+		y_ = xp.split(y.flatten(), 2)
+		return xp.asarray(eqn(y_[0], y_[1], t)).flatten()
 
-	def compute_vector_field(self, hamiltonian:Callable, output:bool=False):
+	def compute_vector_field(self, hamiltonian:Callable, output:bool=False) -> None:
 		q = sp.symbols('q0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('q')
 		p = sp.symbols('p0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('p')
 		t = sp.Symbol('t')
@@ -66,24 +69,12 @@ class HamSys:
 		if output:
 			print('vector_field : ', eqn)
 		eqn = sp.lambdify([q, p, t], eqn)
-
-		def vector_field(t, y):
-			y_ = xp.split(y.flatten(), 2)
-			return xp.asarray(self.eqn(y_[0], y_[1], t)).flatten()
-		
-		if not self.check_energy:
-			return vector_field, None
-		
+		self.vector_field = lambda t, y: self._create_function(t, y, eqn)
 		eqn_t = -sp.simplify(sp.diff(hamiltonian(q, p, t), t))
-		if output:
+		if output and self.check_energy:
 			print('vector_field_k : ', eqn_t)
 		eqn_t = sp.lambdify([q, p, t], eqn_t)
-
-		def vector_field_k(t, y):
-			y_ = xp.split(y.flatten(), 2)
-			return xp.asarray(eqn_t(y_[0], y_[1], t)).flatten()
-		
-		return vector_field, vector_field_k
+		self.vector_field_k = lambda t, y: self._create_function(t, y, eqn_t)
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)
@@ -460,9 +451,9 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 			y_[-1] += h * hs.vector_field_k(t, y_[0])
 		return xp.concatenate([_ for _ in y_], axis=None)
 	
-	if hs.vector_field is None:
+	if not hasattr(hs, 'vector_field'):
 		raise ValueError("'vector_field' must be provided.")
-	if hs.check_energy and hs.vector_field_k is None:
+	if hs.check_energy and not hasattr(hs, 'vector_field_k'):
 		raise ValueError("In order to check energy for a time-dependent system, 'vector_field_k' must be provided.")
 	y_ = xp.tile(y0, 2)
 	if hs.check_energy:

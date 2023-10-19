@@ -47,8 +47,22 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 ----
 ## HamSys class
 
+### Attributes
 
+- `ndof` : number of degrees of freedom of the Hamiltonian system
+       	'ndof' should be an integer or half an integer. Half integers denote an explicit time-dependence.
+- `check_energy` : bool, optional
+       	If True, checks the conservation of energy. Default is False.
+- `vector_field` : callable  
+  	A function which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian.
+- `vector_field_k` : callable  
+	A function which returns {*k*,*H*(*t*,*y*)} where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 
+### Functions
+
+- `get_positions` : from a state vector *y*=(*q*, *p*), returns the positions *q*.
+- `get_momenta` : from a state vector *y*=(*q*, *p*), returns the momenta *p*.
+- `compute_vector_field`: from a callable function (Hamiltonian in canonical coordinates), computes the vector fields; 
 
 ### Example
 ```python
@@ -77,7 +91,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
   - `chi_star` (for `solve_ivp_symp`) : callable   
 	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y* at time *t*.
 	`chi_star` must return an array of the same shape as `y`.
-  - `fun` (for `solve_ivp_sympext`) : callable  
+  - `hs` (for `solve_ivp_sympext`) : element of class HamSys   
 	Right-hand side of the system: the time derivative of the state *y* at time *t*. i.e., {*y*, *H*(*t*, *y*)}. The calling signature is `fun(t, y)`, where `t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`. `fun` must return an array of the same shape as `y`. The state vector should be of the form *y* = (*q*, *p*) or, if there is an explicit time dependence in the Hamiltonian and the need to check the conservation of energy, *y* should be of the form *y* = (*q*, *p*, *k*) where *k* is canonically conjugate to time. In that case, the number of computed trajectories `check_trajs` needs to be specified. 
   - `t_span` : 2-member sequence  
 	Interval of integration (*t*<sub>0</sub>, *t*<sub>f</sub>). The solver starts with *t*=*t*<sub>0</sub> and integrates until it reaches *t*=*t*<sub>f</sub>. Both *t*<sub>0</sub> and *t*<sub>f</sub> must be floats or values interpretable by the float conversion function.	

@@ -39,25 +39,25 @@ class HamSys:
 	def __init__(self, ndof:float=1) -> None:
 		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
 			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
-		self.ndof = int(ndof)
-		self.time_dependent = bool(str(ndof).count('.5'))
+		self._ndof = int(ndof)
+		self._time_dependent = bool(str(ndof).count('.5'))
 
 	def _split(self, y:xp.ndarray, by_var:bool=False, ext:bool=True, check_energy:bool=False):
 		if not check_energy:
 			return xp.split(y, 2 + 2 * by_var * ext)
-		ndof = self.ndof if not ext else 2 * self.ndof
+		ndof = self._ndof if not ext else 2 * self._ndof
 		np = ndof * len(y) // (2 * ndof + 1)
 		if not by_var:
 			return [y[:np], y[np:2*np], y[2*np:]]
 		return [y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]]
 	
-	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable) -> xp.ndarray:
-		y_ = xp.split(y.flatten(), 2)
-		return xp.asarray(eqn(y_[0], y_[1], t)).flatten()
+	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable, vector:bool=True) -> xp.ndarray:
+		y_ = xp.split(y, 2)
+		return xp.asarray(eqn(y_[0], y_[1], t)).flatten() if vector else xp.asarray(eqn(y_[0], y_[1], t))
 
 	def compute_vector_field(self, hamiltonian:Callable, output:bool=False) -> None:
-		q = sp.symbols('q0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('q')
-		p = sp.symbols('p0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('p')
+		q = sp.symbols('q0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('q')
+		p = sp.symbols('p0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('p')
 		t = sp.Symbol('t')
 		energy = sp.lambdify([q, p, t], hamiltonian(q, p, t))
 		self.hamiltonian = partial(self._create_function, eqn=energy)
@@ -67,18 +67,17 @@ class HamSys:
 			print('y_dot : ', eqn)
 		eqn = sp.lambdify([q, p, t], eqn)
 		self.y_dot = partial(self._create_function, eqn=eqn)
-		if self.check_energy:
-			eqn_t = -sp.simplify(sp.diff(hamiltonian(q, p, t), t))
-			if output:
-				print('k_dot : ', eqn_t)
-			eqn_t = sp.lambdify([q, p, t], eqn_t)
-			self.k_dot = partial(self._create_function, eqn=eqn_t)
+		eqn_t = -sp.simplify(sp.diff(hamiltonian(q, p, t), t))
+		if output and eqn_t!=0:
+			print('k_dot : ', eqn_t)
+		eqn_t = sp.lambdify([q, p, t], eqn_t)
+		self.k_dot = partial(self._create_function, eqn=eqn_t)
 
 	def compute_energy(self, sol:OdeSolution, maxerror:bool=False) -> xp.ndarray:
 		if not hasattr(self, 'hamiltonian'):
 			raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
 		val_h = self.hamiltonian(sol.t[xp.newaxis], sol.y)
-		if self.time_dependent:
+		if self._time_dependent:
 			val_h += sol.k
 		return xp.max(xp.abs(val_h - val_h[:, 0][:, xp.newaxis])) if maxerror else val_h 
 
@@ -431,7 +430,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		Hamiltonians: Algorithm and long time performance", 
 		Phys. Rev. E 94, 043303
 	"""
-	check_energy_ = check_energy * hs.time_dependent
+	check_energy_ = check_energy * hs._time_dependent
 	
 	def _coupling(h:float) -> xp.ndarray:
 		return (xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])\

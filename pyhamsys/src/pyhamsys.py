@@ -30,17 +30,20 @@ from scipy.fft import rfft, irfft, rfftfreq
 from typing import Callable, Union, Tuple
 from scipy.optimize import OptimizeResult
 import sympy as sp
+from functools import partial 
+
+class OdeSolution(OptimizeResult):
+    pass
 
 class HamSys:
-	def __init__(self, ndof:float=1, check_energy:bool=False) -> None:
+	def __init__(self, ndof:float=1) -> None:
 		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
 			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
 		self.ndof = int(ndof)
-		time_dependent = bool(str(ndof).count('.5'))
-		self.check_energy = check_energy * time_dependent
+		self.time_dependent = bool(str(ndof).count('.5'))
 
-	def _split(self, y:xp.ndarray, by_var:bool=False, ext:bool=True):
-		if not self.check_energy:
+	def _split(self, y:xp.ndarray, by_var:bool=False, ext:bool=True, check_energy:bool=False):
+		if not check_energy:
 			return xp.split(y, 2 + 2 * by_var * ext)
 		ndof = self.ndof if not ext else 2 * self.ndof
 		np = ndof * len(y) // (2 * ndof + 1)
@@ -48,15 +51,7 @@ class HamSys:
 			return [y[:np], y[np:2*np], y[2*np:]]
 		return [y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]]
 	
-	def get_positions(self, y:xp.ndarray):
-		y_ = self._split(y, by_var=True, ext=False)
-		return y_[0]
-	
-	def get_momenta(self, y:xp.ndarray):
-		y_ = self._split(y, by_var=True, ext=False)
-		return y_[1]
-	
-	def _create_function(self, t, y, eqn):
+	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable) -> xp.ndarray:
 		y_ = xp.split(y.flatten(), 2)
 		return xp.asarray(eqn(y_[0], y_[1], t)).flatten()
 
@@ -64,17 +59,28 @@ class HamSys:
 		q = sp.symbols('q0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('q')
 		p = sp.symbols('p0:%d'%self.ndof) if self.ndof>=2 else sp.Symbol('p')
 		t = sp.Symbol('t')
+		energy = sp.lambdify([q, p, t], hamiltonian(q, p, t))
+		self.hamiltonian = partial(self._create_function, eqn=energy)
 		eqn = sp.simplify(sp.derive_by_array(hamiltonian(q, p, t), [q, p]).doit())
 		eqn = sp.flatten([eqn[1], -eqn[0]])
 		if output:
-			print('vector_field : ', eqn)
+			print('y_dot : ', eqn)
 		eqn = sp.lambdify([q, p, t], eqn)
-		self.vector_field = lambda t, y: self._create_function(t, y, eqn)
-		eqn_t = -sp.simplify(sp.diff(hamiltonian(q, p, t), t))
-		if output and self.check_energy:
-			print('vector_field_k : ', eqn_t)
-		eqn_t = sp.lambdify([q, p, t], eqn_t)
-		self.vector_field_k = lambda t, y: self._create_function(t, y, eqn_t)
+		self.y_dot = partial(self._create_function, eqn=eqn)
+		if self.check_energy:
+			eqn_t = -sp.simplify(sp.diff(hamiltonian(q, p, t), t))
+			if output:
+				print('k_dot : ', eqn_t)
+			eqn_t = sp.lambdify([q, p, t], eqn_t)
+			self.k_dot = partial(self._create_function, eqn=eqn_t)
+
+	def compute_energy(self, sol:OdeSolution, maxerror:bool=False) -> xp.ndarray:
+		if not hasattr(self, 'hamiltonian'):
+			raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
+		val_h = self.hamiltonian(sol.t[xp.newaxis], sol.y)
+		if self.time_dependent:
+			val_h += sol.k
+		return xp.max(xp.abs(val_h - val_h[:, 0][:, xp.newaxis])) if maxerror else val_h 
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)
@@ -151,9 +157,6 @@ def field_envelope(t:float, te_au:xp.ndarray, envelope:str='sinus') -> float:
 	    raise NameError(f'{envelope} envelope not defined')
 	
 METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL', 'PEFRL', 'VEFRL', 'BM4', 'BM6', 'RKN4b', 'RKN6b', 'RKN6a', 'ABA104', 'ABA864', 'ABA1064']
-
-class OdeSolution(OptimizeResult):
-    pass
 
 class SymplecticIntegrator:
 	"""
@@ -352,7 +355,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
-					  method:str='BM4', omega:float=10, command:Callable=None) -> OdeSolution:
+					  method:str='BM4', omega:float=10, command:Callable=None, check_energy:bool=False) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -367,19 +370,22 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	function (state), and a Hamiltonian H(t, y) and a canonical Poisson bracket
 	{. , .} determine the differential equations. The goal is to find y(t) 
 	approximately satisfying the differential equations, given an initial value 
-	y(t0)=y0.
+	y(t0)=y0. The state y(t) is of the form (q(t), p(t)). 
 	
-	The state y(t) could be of the form (q(t), p(t)) or (q(t), p(t), k(t)). 
-	Here k is a canonically conjugate variable to time, for checking the 
-	conservation of energy (optional). 
+	If the Hamiltonian has an explicit time dependence, there is the 
+	possibility to check energy by computing k(t) where k is a canonically 
+	conjugate variable to time. Its evolution is given by
+
+	dk / dt = -dH / dt
+	k(t0)=0
 
 	Parameters
 	----------
 	hs : HamSys
-		Hamiltonian system containing the Hamiltonian vector field.  
-		The vector field `vector_field` should be specified. If there is an 
-		explicit time dependence and the conservation of energy should be 
-		checked, `vector_field_k` should be specified. 
+		Hamiltonian system containing the Hamiltonian vector field. The 
+		attributes `y_dot` (for dy / dt) should be specified. If there is an 
+		explicit time dependence and `check_energy` is True, the attribute 
+		`k_dot` (for dk / dt) should be specified. 
 	t_span : 2-member sequence  
 		Interval of integration (t0, tf). The solver starts with t=t0 and  
 		integrates until it reaches t=tf. Both t0 and tf must be floats or   
@@ -400,15 +406,24 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		Coupling parameter in the extended phase space (see [1])
 	command : function of (t, y) or None, optional
 		Function to be run at each step size. 
+	check_energy : bool, optional
+		If True, computes the total energy. Default is False.  
 
 	Returns
 	-------
 	Bunch object with the following fields defined:
 	t : ndarray, shape (n_points,)  
 		Time points.
-	y : ndarray, shape (m, n_points)  
-		Values y(t) = (q(t), p(t)) or (q(t), p(t), k(t)) at `t`.
-	step : step size used in the computation
+	y : ndarray, shape (2n, n_points)  
+		Values y(t) = (q(t), p(t)) at `t`.
+	k : ndarray, shape (n, n_points)
+		Values of k(t) at `t` if `check_energy` is True and if the Hamiltonian
+		system has an explicit time dependence.   
+	err : float
+		Error in the computation of the total energy, computed only if
+		`check_energy` is True. 
+	step : float
+		Step size used in the computation.
 
 	References
 	----------
@@ -416,6 +431,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		Hamiltonians: Algorithm and long time performance", 
 		Phys. Rev. E 94, 043303
 	"""
+	check_energy_ = check_energy * hs.time_dependent
 	
 	def _coupling(h:float) -> xp.ndarray:
 		return (xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])\
@@ -423,45 +439,46 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
 
 	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs._split(y)
-		y_[1] += h * hs.vector_field(t, y_[0])
-		if hs.check_energy:
-			y_[-1] += h * hs.vector_field_k(t, y_[0])
-		y_[0] += h * hs.vector_field(t, y_[1])
-		if hs.check_energy:
-			y_[-1] += h * hs.vector_field_k(t, y_[1])
+		y_ = hs._split(y, check_energy=check_energy_)
+		y_[1] += h * hs.y_dot(t, y_[0])
+		if check_energy_:
+			y_[-1] += h * hs.k_dot(t, y_[0])
+		y_[0] += h * hs.y_dot(t, y_[1])
+		if check_energy_:
+			y_[-1] += h * hs.k_dot(t, y_[1])
 		yr = xp.concatenate((y_[0], y_[1]), axis=None)
 		yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(yr, 4)).flatten()
-		if not hs.check_energy:
+		if not check_energy_:
 			return yr
 		return xp.concatenate((yr, y_[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs._split(y, by_var=True)
-		yr = y_ if not hs.check_energy else y_[:-1]
+		y_ = hs._split(y, by_var=True, check_energy=check_energy_)
+		yr = y_ if not check_energy_ else y_[:-1]
 		yr = xp.einsum('ij,j...->i...', _coupling(h), yr).flatten()
-		if hs.check_energy:
+		if check_energy_:
 			yr = xp.concatenate((yr, y_[-1]), axis=None) 
-		y_ = hs._split(yr)
-		y_[0] += h * hs.vector_field(t, y_[1])
-		if hs.check_energy:
-			y_[-1] += h * hs.vector_field_k(t, y_[1])
-		y_[1] += h * hs.vector_field(t, y_[0])
-		if hs.check_energy:
-			y_[-1] += h * hs.vector_field_k(t, y_[0])
+		y_ = hs._split(yr, check_energy=check_energy_)
+		y_[0] += h * hs.y_dot(t, y_[1])
+		if check_energy_:
+			y_[-1] += h * hs.k_dot(t, y_[1])
+		y_[1] += h * hs.y_dot(t, y_[0])
+		if check_energy_:
+			y_[-1] += h * hs.k_dot(t, y_[0])
 		return xp.concatenate([_ for _ in y_], axis=None)
 	
-	if not hasattr(hs, 'vector_field'):
-		raise ValueError("'vector_field' must be provided.")
-	if hs.check_energy and not hasattr(hs, 'vector_field_k'):
-		raise ValueError("In order to check energy for a time-dependent system, 'vector_field_k' must be provided.")
+	if not hasattr(hs, 'y_dot'):
+		raise ValueError("The attribute 'y_dot' must be provided.")
+	if check_energy_ and not hasattr(hs, 'k_dot'):
+		raise ValueError("In order to check energy for a time-dependent system, the attrribute 'k_dot' must be provided.")
 	y_ = xp.tile(y0, 2)
-	if hs.check_energy:
+	if check_energy_:
 		y_ = xp.concatenate((y_, xp.zeros(len(y0)//(2*hs.ndof) )), axis=None)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	y_ = hs._split(sol.y, by_var=True)
-	if not hs.check_energy:
-		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
-	else:
-		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2, y_[-1] / 2), axis=0)
+	y_ = hs._split(sol.y, by_var=True, check_energy=check_energy)
+	sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
+	if check_energy_:
+		sol.k = y_[-1] / 2
+	if check_energy:
+		sol.err = hs.compute_energy(sol, maxerror=True)
 	return sol

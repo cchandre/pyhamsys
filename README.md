@@ -45,12 +45,12 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
        	'ndof' should be an integer or half an integer. Half integers denote an explicit time dependence.
 
 ### Attributes
-- `hamiltonian` : callable
-	A function which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
+- `hamiltonian` : callable  
+	A function of (*t*, *y*) which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
 - `y_dot` : callable  
-  	A function which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian.
+  	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*).
 - `k_dot` : callable  
-	A function which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
+	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 
 ### Functions
 - `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables (SymPy), computes the vector fields, `y_dot` and `k_dot`.
@@ -59,20 +59,18 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 
 	#### Parameters
 	- `hamiltonian` : callable
-		Function *H*(*q*, *p*, *t*) expressed with SymPy functions.
-	`hamiltonian` must return a scalar.
+		Function *H*(*q*, *p*, *t*) &ndash;the Hamiltonian expressed in symbolic variables&ndash;, expressed using [SymPy](https://www.sympy.org/en/index.html) functions.
 	- `output` : bool, optional
 		If True, displays the equations of motion. Default is False.
 	
-	The function `compute_vector_field` defines the HamSys function attributes `y_dot` and `k_dot` to be used in `solve_ivp_sympext`. 
-	The function attribute `y_dot` is a function of (*t*, *y*) where *y* = (*q*, *p*) returning (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). The function attribute `k_dot` is a function of (*t*, *y*) where *y* = (*q*, *p*) returning -&part;*H*/&part;*t*).
+	The function `compute_vector_field` determines the HamSys function attributes `y_dot` and `k_dot` to be used in `solve_ivp_sympext`. The derivatives are computed symbolically using SymPy.
 
-- `compute_energy` : from a solution of `solve_ivp_sympext`, computes the total energy and the error in energy.
+- `compute_energy` : from a solution of `solve_ivp_sympext`, computes numerically the total energy and the error in energy.
 
 	#### Parameters
-	- `sol` : OdeSolution
-   		Solution given by `solve_ivp_sympext`. 
- 	- `maxerror` : bool, optional
+	- `sol` : OdeSolution  
+   		Solution provided by `solve_ivp_sympext`. 
+ 	- `maxerror` : bool, optional  
     		Default is True.
 
 	### Returns

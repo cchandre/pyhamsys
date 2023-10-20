@@ -150,3 +150,4 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 >>> plt.show()
 ```
 ---
+For more information: <cristel.chandre@cnrs.fr>

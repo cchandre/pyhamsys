@@ -60,7 +60,7 @@ class HamSys:
 		p = sp.symbols('p0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('p')
 		t = sp.Symbol('t')
 		energy = sp.lambdify([q, p, t], hamiltonian(q, p, t))
-		self.hamiltonian = partial(self._create_function, eqn=energy)
+		self.hamiltonian = partial(self._create_function, eqn=energy, vector=False)
 		eqn = sp.simplify(sp.derive_by_array(hamiltonian(q, p, t), [q, p]).doit())
 		eqn = sp.flatten([eqn[1], -eqn[0]])
 		if output:
@@ -73,12 +73,13 @@ class HamSys:
 		eqn_t = sp.lambdify([q, p, t], eqn_t)
 		self.k_dot = partial(self._create_function, eqn=eqn_t)
 
-	def compute_energy(self, sol:OdeSolution, maxerror:bool=False) -> xp.ndarray:
+	def compute_energy(self, sol:OdeSolution, maxerror:bool=True) -> xp.ndarray:
 		if not hasattr(self, 'hamiltonian'):
 			raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
 		val_h = self.hamiltonian(sol.t[xp.newaxis], sol.y)
 		if self._time_dependent:
 			val_h += sol.k
+			val_h -= val_h[:, 0][:, xp.newaxis]
 		return xp.max(xp.abs(val_h - val_h[:, 0][:, xp.newaxis])) if maxerror else val_h 
 
 def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
@@ -472,12 +473,12 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		raise ValueError("In order to check energy for a time-dependent system, the attrribute 'k_dot' must be provided.")
 	y_ = xp.tile(y0, 2)
 	if check_energy_:
-		y_ = xp.concatenate((y_, xp.zeros(len(y0)//(2*hs.ndof) )), axis=None)
+		y_ = xp.concatenate((y_, xp.zeros(len(y0)//(2*hs._ndof) )), axis=None)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	y_ = hs._split(sol.y, by_var=True, check_energy=check_energy)
+	y_ = hs._split(sol.y, by_var=True, check_energy=check_energy_)
 	sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	if check_energy_:
 		sol.k = y_[-1] / 2
 	if check_energy:
-		sol.err = hs.compute_energy(sol, maxerror=True)
+		sol.err = hs.compute_energy(sol)
 	return sol

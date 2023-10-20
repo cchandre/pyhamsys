@@ -91,7 +91,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
   - `chi_star` (for `solve_ivp_symp`) : callable   
 	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y* at time *t*.
 	`chi_star` must return an array of the same shape as `y`.
-  - `hs` (for `solve_ivp_sympext`) : element of class HamSys
+  - `hs` (for `solve_ivp_sympext`) : element of class HamSys  
 	The attributes `y_dot` of `hs` should be defined. If `check_energy` is True. It the Hamiltonian system has an explicit time dependence (the parameter `ndof` of `hs`  is half an integer), the attribute `k_dot` of `hs` should be specified. 
   - `t_span` : 2-member sequence  
 	Interval of integration (*t*<sub>0</sub>, *t*<sub>f</sub>). The solver starts with *t*=*t*<sub>0</sub> and integrates until it reaches *t*=*t*<sub>f</sub>. Both *t*<sub>0</sub> and *t*<sub>f</sub> must be floats or values interpretable by the float conversion function.	
@@ -108,7 +108,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
    	Coupling parameter in the extended phase space (see [3]). Default = 10.
   - `command` : function of (*t*, *y*)  
 	Function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, or register specific events).
-  - `check_energy` : bool, optional
+  - `check_energy` : bool, optional  
 	If True, the attribute `hamiltonian` of `hs` should be defined. Default is False. 
 
 ### Remarks:   

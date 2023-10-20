@@ -51,16 +51,16 @@ class HamSys:
 			return [y[:np], y[np:2*np], y[2*np:]]
 		return [y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]]
 	
-	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable, vector:bool=True) -> xp.ndarray:
+	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable) -> xp.ndarray:
 		y_ = xp.split(y, 2)
-		return xp.asarray(eqn(y_[0], y_[1], t)).flatten() if vector else xp.asarray(eqn(y_[0], y_[1], t))
+		return xp.asarray(eqn(y_[0], y_[1], t)).flatten()
 
 	def compute_vector_field(self, hamiltonian:Callable, output:bool=False) -> None:
 		q = sp.symbols('q0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('q')
 		p = sp.symbols('p0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('p')
 		t = sp.Symbol('t')
 		energy = sp.lambdify([q, p, t], hamiltonian(q, p, t))
-		self.hamiltonian = partial(self._create_function, eqn=energy, vector=False)
+		self.hamiltonian = partial(self._create_function, eqn=energy)
 		eqn = sp.simplify(sp.derive_by_array(hamiltonian(q, p, t), [q, p]).doit())
 		eqn = sp.flatten([eqn[1], -eqn[0]])
 		if output:

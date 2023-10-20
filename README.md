@@ -47,22 +47,21 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 ----
 ## HamSys class
 
-### Attributes
-
+### Parameters
 - `ndof` : number of degrees of freedom of the Hamiltonian system
-       	'ndof' should be an integer or half an integer. Half integers denote an explicit time-dependence.
-- `check_energy` : bool, optional
-       	If True, checks the conservation of energy. Default is False.
-- `vector_field` : callable  
+       	'ndof' should be an integer or half an integer. Half integers denote an explicit time dependence.
+
+### Attributes
+- `hamiltonian` : callable
+	A function which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
+- `y_dot` : callable  
   	A function which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian.
-- `vector_field_k` : callable  
-	A function which returns {*k*,*H*(*t*,*y*)} where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
+- `k_dot` : callable  
+	A function which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 
 ### Functions
-
-- `get_positions` : from a state vector *y*=(*q*, *p*), returns the positions *q*.
-- `get_momenta` : from a state vector *y*=(*q*, *p*), returns the momenta *p*.
-- `compute_vector_field`: from a callable function (Hamiltonian in canonical coordinates), computes the vector fields; 
+- `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables (SymPy), computes the vector fields, `y_dot` and `k_dot`.  
+- `compute_energy` : from a solution of `solve_ivp_sympext`, computes the total energy and the error in energy. 
 
 ### Example
 ```python
@@ -91,8 +90,8 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
   - `chi_star` (for `solve_ivp_symp`) : callable   
 	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y* at time *t*.
 	`chi_star` must return an array of the same shape as `y`.
-  - `hs` (for `solve_ivp_sympext`) : element of class HamSys   
-	Right-hand side of the system: the time derivative of the state *y* at time *t*. i.e., {*y*, *H*(*t*, *y*)}. The calling signature is `fun(t, y)`, where `t` is a scalar and `y` is an ndarray with `len(y) = len(y0)`. `fun` must return an array of the same shape as `y`. The state vector should be of the form *y* = (*q*, *p*) or, if there is an explicit time dependence in the Hamiltonian and the need to check the conservation of energy, *y* should be of the form *y* = (*q*, *p*, *k*) where *k* is canonically conjugate to time. In that case, the number of computed trajectories `check_trajs` needs to be specified. 
+  - `hs` (for `solve_ivp_sympext`) : element of class HamSys
+	The attributes `y_dot` of `hs` should be defined. If `check_energy` is True. It the Hamiltonian system has an explicit time dependence (the parameter `ndof` of `hs`  is half an integer), the attribute `k_dot` of `hs` should be specified. 
   - `t_span` : 2-member sequence  
 	Interval of integration (*t*<sub>0</sub>, *t*<sub>f</sub>). The solver starts with *t*=*t*<sub>0</sub> and integrates until it reaches *t*=*t*<sub>f</sub>. Both *t*<sub>0</sub> and *t*<sub>f</sub> must be floats or values interpretable by the float conversion function.	
   - `y0` : array_like, shape (n,)  
@@ -108,21 +107,23 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
    	Coupling parameter in the extended phase space (see [3]). Default = 10.
   - `command` : function of (*t*, *y*)  
 	Function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, or register specific events).
-  - `check_trajs` : int or None, optional
-	Number of trajectories.
-	If *y* = (*q*, *p*, *k*), the number of trajectories needs to be specified. 
-	This is used to check the conservation of energy in case the Hamiltonian has an explicit time dependence.
+  - `check_energy` : bool, optional
+	If True, the attribute `hamiltonian` of `hs` should be defined. Default is False. 
 
 ### Remarks:   
   - Use `solve_ivp_symp` is the Hamiltonian can be split and if each partial flow exp(*h* X<sub>*k*</sub>) can be easily computed. Otherwise use `solve_ivp_sympext`.  
-  - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes.  
+  - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes. The step size used in the computation is recorded in the solution as `sol.step`.  
 
 ### Returns:  
 &nbsp; Bunch object with the following fields defined:
    - `t` : ndarray, shape (n_points,)  
 	Time points.
    - `y` : ndarray, shape (n, n_points)  
-	Values of the solution at `t`.
+	Values of the solution `y` at `t`.
+   - `k` : ndarray, shape (n//2, n_points)
+     	Values of `k` at `t`. Only for `solve_ivp_sympext` and if `check_energy` is True for a Hamiltonian system with an explicit time dependence.
+   - `err` : float
+     	Error in the computation of the total energy. Only for `solve_ivp_sympext` and if `check_energy` is True.
    - `step` : step size used in the computation.
 
 ### References:  
@@ -134,12 +135,14 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 
 ```python
 >>> import numpy as xp
+>>> import sympy as sp
 >>> import matplotlib.pyplot as plt
->>> from pyhamsys import solve_ivp_sympext
->>> def fun(t,y):
-	q, p = xp.split(y, 2)
-	return xp.concatenate((p, -xp.sin(q)), axis=None)
->>> sol = solve_ivp_sympext(fun, (0, 20), xp.asarray([3, 0]), step=1e-1)
+>>> from pyhamsys import HamSys, solve_ivp_sympext
+>>> hs = HamSys()
+>>> hamiltonian = lambda q, p, t: p**2 / 2 - sp.cos(q)
+>>> hs.compute_vector_field(hamiltonian)
+>>> sol = solve_ivp_sympext(hs, (0, 20), xp.asarray([3, 0]), step=1e-1, check_energy=True)
+>>> print(f"Error in energy : {sol.err}")
 >>> plt.plot(sol.y[0], sol.y[1])
 >>> plt.show()
 ```

@@ -81,9 +81,9 @@ The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value pr
 	&nbsp; *y*(*t*<sub>0</sub>) = *y*<sub>0</sub>  
 Here *t* is a 1-D independent variable (time), *y*(*t*) is an N-D vector-valued function (state). A Hamiltonian *H*(*t*, *y*) and a Poisson bracket {. , .} determine the differential equations. The goal is to find *y*(*t*) approximately satisfying the differential equations, given an initial value *y*(*t*<sub>0</sub>) = *y*<sub>0</sub>. 
 
-The function `solve_ivp_symp` solves an initial value problem using an explicit symplectic integration. The Hamiltonian flow is defined by two functions `chi` and `chi_star` of (*h*, *t*, *y*) (see [2]). 
+The function `solve_ivp_symp` solves an initial value problem using an explicit symplectic integration. The Hamiltonian flow is defined by two functions `chi` and `chi_star` of (*h*, *t*, *y*) (see [2]). This function works for any set of coordinates, canonical or non-canonical, provided that the splitting *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> leads to facilitated expressions for the operators exp(*h* X<sub>*k*</sub>) where X<sub>*k*</sub> = {*A*<sub>*k*</sub> , &centerdot;}.
 
-The function `solve_ivp_sympext` solves an initial value problem using an explicit symplectic approximation obtained by an extension in phase space (see [3]). The Hamiltonian flow is defined by one function `fun` of (*t*, *y*) and one coupling parameter `omega`. This symplectic approximation works for canonical Poisson brackets and the state vector should be of the form *y* = (*q*, *p*). There is an optional possibility to check the conservation of energy if the system has an explicit time dependence; in that case, the state vector should be *y* = (*q*, *p*, *k*) where *k* is canonically conjugate to time. 
+The function `solve_ivp_sympext` solves an initial value problem using an explicit symplectic approximation obtained by an extension in phase space (see [3]). This symplectic approximation works for canonical Poisson brackets, and the state vector should be of the form *y* = (*q*, *p*). 
 
 ### Parameters:  
 
@@ -94,7 +94,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y* at time *t*.
 	`chi_star` must return an array of the same shape as `y`.
   - `hs` (for `solve_ivp_sympext`) : element of class HamSys  
-	The attributes `y_dot` of `hs` should be defined. If `check_energy` is True. It the Hamiltonian system has an explicit time dependence (the parameter `ndof` of `hs`  is half an integer), the attribute `k_dot` of `hs` should be specified. 
+	The attributes `y_dot` of `hs` should be defined. If `check_energy` is True. It the Hamiltonian system has an explicit time dependence (i.e., the parameter `ndof` of `hs`  is half an integer), the attribute `k_dot` of `hs` should be specified. 
   - `t_span` : 2-member sequence  
 	Interval of integration (*t*<sub>0</sub>, *t*<sub>f</sub>). The solver starts with *t*=*t*<sub>0</sub> and integrates until it reaches *t*=*t*<sub>f</sub>. Both *t*<sub>0</sub> and *t*<sub>f</sub> must be floats or values interpretable by the float conversion function.	
   - `y0` : array_like, shape (n,)  
@@ -110,7 +110,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
    	Coupling parameter in the extended phase space (see [3]). Default = 10.
   - `command` : function of (*t*, *y*)  
 	Function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, or register specific events).
-  - `check_energy` : bool, optional  
+  - `check_energy` (for `solve_ivp_sympext`) : bool, optional  
 	If True, the attribute `hamiltonian` of `hs` should be defined. Default is False. 
 
 ### Returns:  
@@ -119,14 +119,14 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Time points.
    - `y` : ndarray, shape (n, n_points)  
 	Values of the solution `y` at `t`.
-   - `k` : ndarray, shape (n//2, n_points)
-     	Values of `k` at `t`. Only for `solve_ivp_sympext` and if `check_energy` is True for a Hamiltonian system with an explicit time dependence.
-   - `err` : float
+   - `k` (for `solve_ivp_sympext`) : ndarray, shape (n//2, n_points)
+     	Values of `k` at `t`. Only for `solve_ivp_sympext` and if `check_energy` is True for a Hamiltonian system with an explicit time dependence (i.e., the parameter `ndof` of `hs`  is half an integer).
+   - `err` (for `solve_ivp_sympext`) : float
      	Error in the computation of the total energy. Only for `solve_ivp_sympext` and if `check_energy` is True.
    - `step` : step size used in the computation.
 
 ### Remarks:   
-  - Use `solve_ivp_symp` is the Hamiltonian can be split and if each partial flow exp(*h* X<sub>*k*</sub>) can be easily computed. Otherwise use `solve_ivp_sympext`.  
+  - Use `solve_ivp_symp` is the Hamiltonian can be split and if each partial operator exp(*h* X<sub>*k*</sub>) can be easily expressed/computed. Otherwise use `solve_ivp_sympext` if your coordinates are canonical.  
   - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes. The step size used in the computation is recorded in the solution as `sol.step`.  
 
 ### References:  

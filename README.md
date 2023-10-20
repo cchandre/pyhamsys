@@ -73,6 +73,8 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
  	- `maxerror` : bool, optional  
     		Default is True.
 
+---
+## solve_ivp_symp and solve_ivp_sympext
 
 The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value problem for a Hamiltonian system using an element of the class SymplecticIntegrator, an explicit symplectic splitting scheme (see [1]). These functions numerically integrate a system of ordinary differential equations given an initial value:  
 	&nbsp; d*y* / d*t* = {*y*, *H*(*t*, *y*)}  
@@ -111,10 +113,6 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
   - `check_energy` : bool, optional  
 	If True, the attribute `hamiltonian` of `hs` should be defined. Default is False. 
 
-### Remarks:   
-  - Use `solve_ivp_symp` is the Hamiltonian can be split and if each partial flow exp(*h* X<sub>*k*</sub>) can be easily computed. Otherwise use `solve_ivp_sympext`.  
-  - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes. The step size used in the computation is recorded in the solution as `sol.step`.  
-
 ### Returns:  
 &nbsp; Bunch object with the following fields defined:
    - `t` : ndarray, shape (n_points,)  
@@ -126,6 +124,10 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
    - `err` : float
      	Error in the computation of the total energy. Only for `solve_ivp_sympext` and if `check_energy` is True.
    - `step` : step size used in the computation.
+
+### Remarks:   
+  - Use `solve_ivp_symp` is the Hamiltonian can be split and if each partial flow exp(*h* X<sub>*k*</sub>) can be easily computed. Otherwise use `solve_ivp_sympext`.  
+  - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes. The step size used in the computation is recorded in the solution as `sol.step`.  
 
 ### References:  
   - [1] Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)  

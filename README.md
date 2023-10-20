@@ -37,13 +37,6 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
     
 All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator. These integrators are used in the functions `solve_ivp_symp` and `solve_ivp_sympext` by specifying the entry `method` (default is `BM4`). 
 
-### Example
-
-```python
->>> from pyhamsys import SymplecticIntegrator 
->>> integrator = SymplecticIntegrator('BM4')
-```
-
 ----
 ## HamSys class
 
@@ -60,17 +53,30 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 	A function which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 
 ### Functions
-- `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables (SymPy), computes the vector fields, `y_dot` and `k_dot`.  
-- `compute_energy` : from a solution of `solve_ivp_sympext`, computes the total energy and the error in energy. 
+- `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables (SymPy), computes the vector fields, `y_dot` and `k_dot`.
 
-### Example
-```python
->>> import sympy as sp
->>> from pyhamsys import HamSys
->>> hs = HamSys()
->>> hamiltonian = lambda q, p, t: p**2 / 2 + 1 - sp.cos(q)
->>> hs.compute_vector_field(hamiltonian, output=True)
-```
+	Determine Hamilton's equations of motion from a given scalar function &ndash;the Hamiltonian&ndash; *H*(*q*, *p*, *t*) where *q* and *p* are respectively positions and momenta.
+
+	#### Parameters
+	- `hamiltonian` : callable
+		Function *H*(*q*, *p*, *t*) expressed with SymPy functions.
+	`hamiltonian` must return a scalar.
+	- `output` : bool, optional
+		If True, displays the equations of motion. Default is False.
+	
+	The function `compute_vector_field` defines the HamSys function attributes `y_dot` and `k_dot` to be used in `solve_ivp_sympext`. 
+	The function attribute `y_dot` is a function of (*t*, *y*) where *y* = (*q*, *p*) returning (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). The function attribute `k_dot` is a function of (*t*, *y*) where *y* = (*q*, *p*) returning -&part;*H*/&part;*t*).
+
+- `compute_energy` : from a solution of `solve_ivp_sympext`, computes the total energy and the error in energy.
+
+	#### Parameters
+	- `sol` : OdeSolution
+   		Solution given by `solve_ivp_sympext`. 
+ 	- `maxerror` : bool, optional
+    		Default is True.
+
+	### Returns
+	- returns error in total energy if `maxerror` is True; otherwise, returns the values of the total energy. 
 
 
 The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value problem for a Hamiltonian system using an element of the class SymplecticIntegrator, an explicit symplectic splitting scheme (see [1]). These functions numerically integrate a system of ordinary differential equations given an initial value:  
@@ -140,40 +146,10 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 >>> from pyhamsys import HamSys, solve_ivp_sympext
 >>> hs = HamSys()
 >>> hamiltonian = lambda q, p, t: p**2 / 2 - sp.cos(q)
->>> hs.compute_vector_field(hamiltonian)
+>>> hs.compute_vector_field(hamiltonian, output=True)
 >>> sol = solve_ivp_sympext(hs, (0, 20), xp.asarray([3, 0]), step=1e-1, check_energy=True)
 >>> print(f"Error in energy : {sol.err}")
 >>> plt.plot(sol.y[0], sol.y[1])
 >>> plt.show()
 ```
 ---
-
-## Determination of the equations of motion
-
-Determine Hamilton's equations of motion from a given Hamiltonian *H*(*q*, *p*, *t*) where *q* and *p* are N-D vector (resp., positions and momenta).
-The output is a NumPy function providing the equations of motion ready to use in `solve_ivp` and `solve_ivp_sympext`. 
-
-### Parameters
-
-  - `hamiltonian` : callable
-	Function *H*(*q*, *p*, *t*) expressed with SymPy functions.
-	`hamiltonian` must return a scalar.
-  - `ndof` : int, optional
-	Number of degrees of freedom, i.e., number of positions. Default is 1.
-  - `output` : bool, optional
-	If True, displays the equations of motion. Default is False.
-
-### Returns
-
-Function of (*t*, *y*) where *y* = (*q*, *p*) returning (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). If there is an explicit dependence on time, the state vector is *y* = (*q*, *p*, *k*) where *k* is concanically conjugate to time. The function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*, -&part;*H*/&part;*t*). The input *y* and the output are ndarrays, and the output is of the same size as *y*. 
-
-### Example
-
-```python
->>> import numpy as xp
->>> import sympy as sp
->>> from pyhamsys import eqns_of_motion
->>> hamiltonian = lambda q, p, t: p**2 / 2 + 1 - sp.cos(q)
->>> my_eqns = eqns_of_motion(hamiltonian, output=True)
->>> print(my_eqns(0, xp.array([xp.pi, 1])))
-```

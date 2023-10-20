@@ -65,16 +65,13 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 	
 	The function `compute_vector_field` determines the HamSys function attributes `y_dot` and `k_dot` to be used in `solve_ivp_sympext`. The derivatives are computed symbolically using SymPy.
 
-- `compute_energy` : from a solution of `solve_ivp_sympext`, computes numerically the total energy and the error in energy.
-
+- `compute_energy` : callable
+  	A function of `sol` &ndash;a solution provided by `solve_ivp_sympext`&ndash; and `maxerror`, a boolean indicating whether the maximum error in total energy is given (if True) or all the values of the total energy (if False). 
 	#### Parameters
 	- `sol` : OdeSolution  
    		Solution provided by `solve_ivp_sympext`. 
  	- `maxerror` : bool, optional  
     		Default is True.
-
-	### Returns
-	- returns error in total energy if `maxerror` is True; otherwise, returns the values of the total energy. 
 
 
 The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value problem for a Hamiltonian system using an element of the class SymplecticIntegrator, an explicit symplectic splitting scheme (see [1]). These functions numerically integrate a system of ordinary differential equations given an initial value:  

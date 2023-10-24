@@ -62,9 +62,10 @@ class HamSys:
 	def rectify_sol(self, sol:OdeSolution, check_energy:bool=False) -> OdeSolution:
 		if not check_energy:
 			return sol
-		vec = self._split(sol.y, ext=False, check_energy=True)
-		sol.y = xp.concatenate((vec[0], vec[1]), axis=0)
-		sol.k = vec[2]
+		if self._time_dependent:
+			vec = self._split(sol.y, ext=False, check_energy=True)
+			sol.y = xp.concatenate((vec[0], vec[1]), axis=0)
+			sol.k = vec[2]
 		sol.err = self.compute_energy(sol)
 		return sol
 	
@@ -507,7 +508,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	if not hasattr(hs, 'y_dot'):
 		raise ValueError("The attribute 'y_dot' must be provided.")
 	if check_energy_ and not hasattr(hs, 'k_dot'):
-		raise ValueError("In order to check energy for a time-dependent system, the attrribute 'k_dot' must be provided.")
+		raise ValueError("In order to check energy for a time-dependent system, the attribute 'k_dot' must be provided.")
 	y_ = xp.tile(y0, 2)
 	if check_energy_:
 		y_ = xp.concatenate((y_, xp.zeros(len(y0)//(2*hs._ndof) )), axis=None)

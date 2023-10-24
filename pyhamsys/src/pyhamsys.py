@@ -58,7 +58,16 @@ class HamSys:
 	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable) -> xp.ndarray:
 		y_ = xp.split(y, 2)
 		return xp.asarray(eqn(y_[0], y_[1], t)).flatten()
-
+	
+	def rectify_sol(self, sol:OdeSolution, check_energy:bool=False) -> OdeSolution:
+		if not check_energy:
+			return sol
+		vec = self._split(sol.y, ext=False, check_energy=True)
+		sol.y = xp.concatenate((vec[0], vec[1]), axis=0)
+		sol.k = vec[2]
+		sol.err = self.compute_energy(sol)
+		return sol
+	
 	def compute_vector_field(self, hamiltonian:Callable, output:bool=False) -> None:
 		q = sp.symbols('q0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('q')
 		p = sp.symbols('p0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('p')

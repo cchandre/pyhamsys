@@ -376,7 +376,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	t, y_ = t0, y0.copy()
 	while t < tf:
 		t, y_ = _integrate(t, y_)
-		if t_eval is not None and t > t_eval.max():
+		if t_eval is not None and t >= t_eval.max() + step / 2:
 			break
 		if t_eval is not None:
 			count += 1

@@ -90,11 +90,11 @@ class HamSys:
 	def compute_energy(self, sol:OdeSolution, maxerror:bool=True) -> xp.ndarray:
 		if not hasattr(self, 'hamiltonian'):
 			raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
-		val_h = self.hamiltonian(sol.t[xp.newaxis], sol.y)
+		val_h = xp.atleast_2d(self.hamiltonian(sol.t[xp.newaxis], sol.y))
 		if self._time_dependent:
-			val_h += sol.k
+			val_h += xp.atleast_2d(sol.k)
 			val_h -= val_h[:, 0][:, xp.newaxis]
-		return xp.max(xp.abs(val_h - val_h[:, 0][:, xp.newaxis])) if maxerror else val_h 
+		return xp.max(xp.abs(val_h - val_h[:, 0][:, xp.newaxis])) if maxerror else xp.squeeze(val_h)
 
 def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 	x, y = xp.split(sol.y, 2)

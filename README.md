@@ -4,10 +4,11 @@ pyHamSys is a Python package for scientific computing involving Hamiltonian syst
 ![PyPI](https://img.shields.io/pypi/v/pyhamsys)
 ![License](https://img.shields.io/badge/license-BSD-lightgray)
 
-Installation: 
+Installation within a Python virtual environment: 
 ```
-pip install pyhamsys
+python3 -m pip install pyhamsys
 ```
+For more information on creating a Python virtual environment, click [here](https://realpython.com/python-virtual-environments-a-primer/).
 
 ## Symplectic Integrators
 pyHamSys includes a class SymplecticIntegrator containing the following symplectic splitting integrators:

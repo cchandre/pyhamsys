@@ -393,7 +393,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
-					  method:str='BM4', omega:float=10, command:Callable=None, check_energy:bool=False) -> OdeSolution:
+					  method:str='BM4', omega:float=10, command:Callable=None, check_energy:bool=False, complex:bool=False) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -446,6 +446,8 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		Function to be run at each step size. 
 	check_energy : bool, optional
 		If True, computes the total energy. Default is False.  
+	complex : bool, optional
+		If True, the coordinate is (q+ip)/sqrt(2) instead of (q,p). Default is False.	
 
 	Returns
 	-------
@@ -472,6 +474,8 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	check_energy_ = check_energy * hs._time_dependent
 	
 	def _coupling(h:float) -> xp.ndarray:
+		if complex:
+			return 	
 		return (xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])\
 			  + xp.cos(2 * omega * h) * xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]])\
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2

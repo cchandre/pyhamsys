@@ -40,20 +40,31 @@ class OdeSolution(OptimizeResult):
     pass
 
 class HamSys:
-	def __init__(self, ndof:float=1) -> None:
+	def __init__(self, ndof:float=1, complex:bool=False) -> None:
 		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
 			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
 		self._ndof = int(ndof)
 		self._time_dependent = bool(str(ndof).count('.5'))
+		self._complex = complex
 
-	def _split(self, y:xp.ndarray, by_var:bool=False, ext:bool=True, check_energy:bool=False):
+	def _split(self, y:xp.ndarray, by_var:bool=False, sympext:bool=True, check_energy:bool=False):
+		by_var = by_var if not self._complex else False
 		if not check_energy:
-			return xp.split(y, 2 + 2 * by_var * ext)
-		ndof = self._ndof if not ext else 2 * self._ndof
-		np = ndof * len(y) // (2 * ndof + 1)
+			return xp.split(y, 2 + 2 * by_var * sympext)
+		if by_var and sympext:
+			dim_group = [self._ndof, self._ndof, self._ndof, self._ndof, 1]
+		elif self._complex and not sympext:
+			dim_group = [self._ndof, 1]
+		else:
+			dim_group = [self._ndof, self._ndof, 1]
+		np = self._ndof * len(y) // xp.sum(dim_group)
+		if self._complex and not sympext:
+			return [y[:np], y[np:]]
+		if not by_var and not self._complex:
+			np *= 2
 		if not by_var:
 			return [y[:np], y[np:2*np], y[2*np:]]
-		return [y[:np//2], y[np//2:np], y[np:3*np//2], y[3*np//2:2*np], y[2*np:]]
+		return [y[:np], y[np:2*np], y[2*np:3*np], y[3*np:4*np], y[4*np:]]
 	
 	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable) -> xp.ndarray:
 		y_ = xp.split(y, 2)
@@ -63,13 +74,15 @@ class HamSys:
 		if not check_energy:
 			return sol
 		if self._time_dependent:
-			vec = self._split(sol.y, ext=False, check_energy=True)
+			vec = self._split(sol.y, sympext=False, check_energy=True)
 			sol.y = xp.concatenate((vec[0], vec[1]), axis=0)
 			sol.k = vec[2]
 		sol.err = self.compute_energy(sol)
 		return sol
 	
 	def compute_vector_field(self, hamiltonian:Callable, output:bool=False) -> None:
+		if self.complex:
+			raise ValueError("Computation of vector fields not implemented for complex Hamiltonians")
 		q = sp.symbols('q0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('q')
 		p = sp.symbols('p0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('p')
 		t = sp.Symbol('t')
@@ -392,8 +405,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	t_vec = xp.asarray(t_vec)
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
-def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, 
-					  method:str='BM4', omega:float=10, command:Callable=None, check_energy:bool=False, complex:bool=False) -> OdeSolution:
+def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, method:str='BM4', omega:float=10, command:Callable=None, check_energy:bool=False) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -445,9 +457,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	command : function of (t, y) or None, optional
 		Function to be run at each step size. 
 	check_energy : bool, optional
-		If True, computes the total energy. Default is False.  
-	complex : bool, optional
-		If True, the coordinate is (q+ip)/sqrt(2) instead of (q,p). Default is False.	
+		If True, computes the total energy. Default is False.  	
 
 	Returns
 	-------
@@ -474,8 +484,8 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	check_energy_ = check_energy * hs._time_dependent
 	
 	def _coupling(h:float) -> xp.ndarray:
-		if complex:
-			return 	
+		if hs._complex:
+			return 	(xp.array([[1, 1], [1, 1]]) + xp.exp(2j * omega * h) * xp.array([[1, -1], [-1, 1]])) / 2
 		return (xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])\
 			  + xp.cos(2 * omega * h) * xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]])\
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
@@ -489,7 +499,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		if check_energy_:
 			y_[-1] += h * hs.k_dot(t, y_[1])
 		yr = xp.concatenate((y_[0], y_[1]), axis=None)
-		yr = xp.einsum('ij,j...->i...', _coupling(h), xp.split(yr, 4)).flatten()
+		yr = xp.einsum('ij,j...->i...', _coupling(h), hs._split(yr, by_var=True)).flatten()
 		if not check_energy_:
 			return yr
 		return xp.concatenate((yr, y_[-1]), axis=None) 
@@ -518,7 +528,10 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		y_ = xp.concatenate((y_, xp.zeros(len(y0)//(2*hs._ndof) )), axis=None)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
 	y_ = hs._split(sol.y, by_var=True, check_energy=check_energy_)
-	sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
+	if not hs._complex:
+		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
+	else:
+		sol.y = (y_[0] + y_[2]) / 2
 	if check_energy_:
 		sol.k = y_[-1] / 2
 	if check_energy:

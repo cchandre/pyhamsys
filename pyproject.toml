@@ -7,7 +7,7 @@ where = ["src"]
 
 [project]
 name = "pyhamsys"
-version = "0.32"
+version = "0.4"
 license = {file = "LICENSE"}
 keywords = ["Hamiltonian", "symplectic integrators", "ODE solver"]
 authors = [

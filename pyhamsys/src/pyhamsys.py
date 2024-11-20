@@ -47,24 +47,12 @@ class HamSys:
 		self._time_dependent = bool(str(ndof).count('.5'))
 		self._complex = complex
 
-	def _split(self, y:xp.ndarray, by_var:bool=False, sympext:bool=True, check_energy:bool=False):
-		by_var = by_var if not self._complex else False
+	def _split(self, y:xp.ndarray, n:int, check_energy:bool=False):
+		yr = y[:-1] if check_energy else y
+		ys = xp.split(yr, n)
 		if not check_energy:
-			return xp.split(y, 2 + 2 * by_var * sympext)
-		if by_var and sympext:
-			dim_group = [self._ndof, self._ndof, self._ndof, self._ndof, 1]
-		elif self._complex and not sympext:
-			dim_group = [self._ndof, 1]
-		else:
-			dim_group = [self._ndof, self._ndof, 1]
-		np = self._ndof * len(y) // xp.sum(dim_group)
-		if self._complex and not sympext:
-			return [y[:np], y[np:]]
-		if not by_var and not self._complex:
-			np *= 2
-		if not by_var:
-			return [y[:np], y[np:2*np], y[2*np:]]
-		return [y[:np], y[np:2*np], y[2*np:3*np], y[3*np:4*np], y[4*np:]]
+			return ys
+		return ys.append(y[-1])
 	
 	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable) -> xp.ndarray:
 		y_ = xp.split(y, 2)
@@ -74,9 +62,7 @@ class HamSys:
 		if not check_energy:
 			return sol
 		if self._time_dependent:
-			vec = self._split(sol.y, sympext=False, check_energy=True)
-			sol.y = xp.concatenate((vec[0], vec[1]), axis=0)
-			sol.k = vec[2]
+			sol.y, sol.k = sol.y[:-1, :], sol.y[-1, :]
 		sol.err = self.compute_energy(sol)
 		return sol
 	
@@ -103,11 +89,12 @@ class HamSys:
 	def compute_energy(self, sol:OdeSolution, maxerror:bool=True) -> xp.ndarray:
 		if not hasattr(self, 'hamiltonian'):
 			raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
-		val_h = xp.atleast_2d(self.hamiltonian(sol.t[xp.newaxis], sol.y))
+		val_h = xp.empty_like(sol.t)
+		for _, t in enumerate(sol.t):
+			val_h[_] = self.hamiltonian(t, sol.y[:, _])
 		if self._time_dependent:
-			val_h += xp.atleast_2d(sol.k)
-			val_h -= val_h[:, 0][:, xp.newaxis]
-		return xp.max(xp.abs(val_h - val_h[:, 0][:, xp.newaxis])) if maxerror else xp.squeeze(val_h)
+			val_h += sol.k
+		return xp.max(xp.abs(val_h - val_h[0])) if maxerror else val_h
 
 def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 	x, y = xp.split(sol.y, 2)
@@ -420,7 +407,8 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	function (state), and a Hamiltonian H(t, y) and a canonical Poisson bracket
 	{. , .} determine the differential equations. The goal is to find y(t) 
 	approximately satisfying the differential equations, given an initial value 
-	y(t0)=y0. The state y(t) is of the form (q(t), p(t)). 
+	y(t0)=y0. The state y(t) is of the form (q(t), p(t)) for a real Hamiltonian 
+	system, and (q(t) + i p(t)) / sqrt(2) for complex Hamiltonian systems. 
 	
 	If the Hamiltonian has an explicit time dependence, there is the 
 	possibility to check energy by computing k(t) where k is a canonically 
@@ -441,8 +429,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		integrates until it reaches t=tf. Both t0 and tf must be floats or   
 		values interpretable by the float conversion function.	 
 	y0 : array_like, shape (2n,)
-		Initial state y0=(q0, p0) where q0 are the initial positions and p0 the
-		initial momenta.
+		Initial state y0. If hs is complex y0 = (q0 + i p0) / sqrt(2) where q0 are the initial positions and p0 the initial momenta. Otherwise y0 = (q0, p0). 
 	step : float
 		Step size.
 	t_eval : array_like or None, optional
@@ -464,9 +451,9 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	Bunch object with the following fields defined:
 	t : ndarray, shape (n_points,)  
 		Time points.
-	y : ndarray, shape (2n, n_points)  
-		Values y(t) = (q(t), p(t)) at `t`.
-	k : ndarray, shape (n, n_points)
+	y : ndarray, shape (2n, n_points) real array or  (n, n_points) complex array
+		If hs real, y(t) = (q(t), p(t)) at `t`. If hs complex, y(t) = (q(t) + i p(t)) / sqrt(2)
+	k : ndarray, shape (n_points,)
 		Values of k(t) at `t` if `check_energy` is True and if the Hamiltonian
 		system has an explicit time dependence.   
 	err : float
@@ -491,7 +478,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
 
 	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs._split(y, check_energy=check_energy_)
+		y_ = hs._split(y, 2, check_energy=check_energy_)
 		y_[1] += h * hs.y_dot(t, y_[0])
 		if check_energy_:
 			y_[-1] += h * hs.k_dot(t, y_[0])
@@ -499,18 +486,18 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		if check_energy_:
 			y_[-1] += h * hs.k_dot(t, y_[1])
 		yr = xp.concatenate((y_[0], y_[1]), axis=None)
-		yr = xp.einsum('ij,j...->i...', _coupling(h), hs._split(yr, by_var=True)).flatten()
+		yr = xp.einsum('ij,j...->i...', _coupling(h), hs._split(yr, 2 if hs._complex else 4)).flatten()
 		if not check_energy_:
 			return yr
 		return xp.concatenate((yr, y_[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs._split(y, by_var=True, check_energy=check_energy_)
+		y_ = hs._split(y, 2 if hs._complex else 4, check_energy=check_energy_)
 		yr = y_ if not check_energy_ else y_[:-1]
 		yr = xp.einsum('ij,j...->i...', _coupling(h), yr).flatten()
 		if check_energy_:
 			yr = xp.concatenate((yr, y_[-1]), axis=None) 
-		y_ = hs._split(yr, check_energy=check_energy_)
+		y_ = hs._split(yr, 2, check_energy=check_energy_)
 		y_[0] += h * hs.y_dot(t, y_[1])
 		if check_energy_:
 			y_[-1] += h * hs.k_dot(t, y_[1])
@@ -525,13 +512,13 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		raise ValueError("In order to check energy for a time-dependent system, the attribute 'k_dot' must be provided.")
 	y_ = xp.tile(y0, 2)
 	if check_energy_:
-		y_ = xp.concatenate((y_, xp.zeros(len(y0)//(2*hs._ndof) )), axis=None)
+		y_ = xp.pad(y_, (0, 1), 'constant')
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=command)
-	y_ = hs._split(sol.y, by_var=True, check_energy=check_energy_)
+	y_ = hs._split(sol.y, 2 if hs._complex else 4, check_energy=check_energy_)
 	if not hs._complex:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	else:
-		sol.y = (y_[0] + y_[2]) / 2
+		sol.y = (y_[0] + y_[1]) / 2
 	if check_energy_:
 		sol.k = y_[-1] / 2
 	if check_energy:

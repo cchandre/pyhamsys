@@ -67,7 +67,7 @@ class HamSys:
 		return sol
 	
 	def compute_vector_field(self, hamiltonian:Callable, output:bool=False) -> None:
-		if self.complex:
+		if self._complex:
 			raise ValueError("Computation of vector fields not implemented for complex Hamiltonians")
 		q = sp.symbols('q0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('q')
 		p = sp.symbols('p0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('p')

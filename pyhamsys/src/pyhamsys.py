@@ -513,15 +513,16 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		raise ValueError("The attribute 'y_dot' must be provided.")
 	if check_energy_ and not hasattr(hs, 'k_dot'):
 		raise ValueError("In order to check energy for a time-dependent system, the attribute 'k_dot' must be provided.")
+	
 	y_ = xp.tile(y0, 2)
 	if check_energy_:
-		y_ = xp.pad(y_, (0, 1), 'constant')
+		y_ = xp.append(y_, 0, 'constant')
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=_command if command is not None else None)
 	y_ = hs._split(sol.y, 2 if hs._complex else 4, check_energy=check_energy_)
-	if not hs._complex:
-		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
-	else:
+	if hs._complex:
 		sol.y = (y_[0] + y_[1]) / 2
+	else:
+		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 	if check_energy_:
 		sol.k = y_[-1] / 2
 	if check_energy:

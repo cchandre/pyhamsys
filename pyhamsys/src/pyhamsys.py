@@ -477,7 +477,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 			  + xp.cos(2 * omega * h) * xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]])\
 			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
 	
-	def _command(t:float, y:xp.ndarray) -> None:
+	def _command(t:float, y:xp.ndarray):
 		return command(t, hs._split(y, 2, check_energy=check_energy_)[0])
 
 	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
@@ -516,7 +516,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	y_ = xp.tile(y0, 2)
 	if check_energy_:
 		y_ = xp.pad(y_, (0, 1), 'constant')
-	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=_command)
+	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=_command if command is not None else None)
 	y_ = hs._split(sol.y, 2 if hs._complex else 4, check_energy=check_energy_)
 	if not hs._complex:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)

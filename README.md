@@ -44,6 +44,8 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 ### Parameters
 - `ndof` : number of degrees of freedom of the Hamiltonian system
        	'ndof' should be an integer or half an integer. Half integers denote an explicit time dependence.
+- `complex` : bolean   
+	If False, the dynamical variables (q, p) are real and canonically conjugate. If True, the dynamical variables are (&psi;, &psi;<sup>*</sup>) where $\psi=(q + i p)/\sqrt{2}$. Default is False. 
 
 ### Attributes
 - `hamiltonian` : callable  
@@ -120,7 +122,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Time points.
    - `y` : ndarray, shape (n, n_points)  
 	Values of the solution `y` at `t`.
-   - `k` (for `solve_ivp_sympext`) : ndarray, shape (n//2, n_points)
+   - `k` (for `solve_ivp_sympext`) : ndarray, shape (n_points,)
      	Values of `k` at `t`. Only for `solve_ivp_sympext` and if `check_energy` is True for a Hamiltonian system with an explicit time dependence (i.e., the parameter `ndof` of `hs`  is half an integer).
    - `err` (for `solve_ivp_sympext`) : float
      	Error in the computation of the total energy. Only for `solve_ivp_sympext` and if `check_energy` is True.
@@ -128,7 +130,8 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 
 ### Remarks:   
   - Use `solve_ivp_symp` is the Hamiltonian can be split and if each partial operator exp(*h* X<sub>*k*</sub>) can be easily expressed/computed. Otherwise use `solve_ivp_sympext` if your coordinates are canonical.  
-  - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes. The step size used in the computation is recorded in the solution as `sol.step`.  
+  - If `t_eval` is a linearly spaced list or array, or if `t_eval` is None (default), the step size is slightly readjusted so that the output times contain the values in `t_eval`, or the final time *t*<sub>f</sub> corresponds to an integer number of step sizes. The step size used in the computation is recorded in the solution as `sol.step`.
+  - For integrating multiple trajectories at the same time, extend phase space and define a state vector y = (y<sub>1</sub>, y<sub>2</sub>,...y<sub>N</sub>) where N is the number of trajectories. The Hamiltonian is given by $H(t,\mathbf{y})=\sum_{i=1}^N h(t, y_i)$.
 
 ### References:  
   - [1] Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)  

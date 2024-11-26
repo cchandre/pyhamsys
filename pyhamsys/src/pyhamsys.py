@@ -48,8 +48,7 @@ class HamSys:
 		self._complex = complex
 
 	def _split(self, y:xp.ndarray, n:int, check_energy:bool=False):
-		yr = y[:-1] if check_energy else y
-		ys = xp.split(yr, n)
+		ys = xp.split(y[:-1] if check_energy else y, n)
 		if not check_energy:
 			return ys
 		return ys.append(y[-1])

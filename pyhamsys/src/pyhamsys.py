@@ -468,13 +468,16 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		Phys. Rev. E 94, 043303
 	"""
 	check_energy_ = check_energy * hs._time_dependent
+
+	J20, J22 = xp.array([[1, 1], [1, 1]]) / 2, xp.array([[1, -1], [-1, 1]]) / 2
+	J40, J42c, J42s = xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]]) / 2, \
+		xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]]) / 2, \
+		xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]]) / 2
 	
 	def _coupling(h:float) -> xp.ndarray:
 		if hs._complex:
-			return 	(xp.array([[1, 1], [1, 1]]) + xp.exp(2j * omega * h) * xp.array([[1, -1], [-1, 1]])) / 2
-		return (xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]])\
-			  + xp.cos(2 * omega * h) * xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]])\
-			  + xp.sin(2 * omega * h) * xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]])) / 2
+			return J20 + xp.exp(2j * omega * h) * J22
+		return J40 + xp.cos(2 * omega * h) * J42c + xp.sin(2 * omega * h) * J42s
 	
 	def _command(t:float, y:xp.ndarray):
 		return command(t, hs._split(y, 2, check_energy=check_energy_)[0])

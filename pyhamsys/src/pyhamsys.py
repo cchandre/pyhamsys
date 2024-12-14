@@ -337,11 +337,6 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	"""
 	integrator = SymplecticIntegrator(method)
 	t0, tf = map(float, t_span)
-
-	if t_eval is None or xp.isclose(t_eval[0], t0):
-		t_vec, y_vec = [t0], y0[..., xp.newaxis] 
-	else:
-		t_vec, y_vec = [], []
 	
 	if t0 > tf:
 		raise ValueError("Values in `t_span` are not properly sorted.")
@@ -351,44 +346,42 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 			raise ValueError("`t_eval` must be 1-dimensional.")
 		if xp.any(t_eval < t0) or xp.any(t_eval > tf):
 			raise ValueError("Values in `t_eval` are not within `t_span`.")
+		if not xp.isclose(t_eval[0], t0):
+			t_eval = xp.insert(t_eval, 0, t0)
 		if xp.any(xp.diff(t_eval) <= 0):
 			raise ValueError("Values in `t_eval` are not properly sorted.")
 		if not xp.allclose(xp.diff(t_eval), xp.diff(t_eval)[0]):
-			raise ValueError("Values in `t_eval` are not equally spaced.")
-		if not xp.isclose(t_eval[0], t0):
-			t_eval = xp.insert(t_eval, 0, t0)
+			raise ValueError("Values in `t_eval` are not equally spaced or t_span[0] is not in `t_eval`.")
 
 	if t_eval is not None:
 		step = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / step)
 		spacing = int(xp.ceil((t_eval[1] - t_eval[0]) / step))
+		tf = min(tf, t_eval.max())
 	else:
-		step = xp.abs((tf - t0)) / xp.ceil(xp.abs((tf - t0)) / step)
+		step = (tf - t0) / xp.ceil((tf - t0) / step)
+		spacing = 1
 	alpha_s = integrator.alpha_s * step
+
+	times = xp.linspace(t0, tf, int(xp.ceil((tf - t0) / step)) + 1)
+	t_vec = times[::spacing]
+	y_vec = xp.empty(y0.shape + t_vec.shape)
+	y_vec[:] = xp.nan
 
 	def _integrate(t:float, y:xp.ndarray) -> Tuple[float, xp.ndarray]:
 		for h, st in zip(alpha_s, integrator.alpha_o):
 			y = chi(h, t + h, y) if st==0 else chi_star(h, t, y)
 			t += h
 		return t, y
-
-	count = 0
-	t, y_ = t0, y0.copy()
-	while t < tf:
-		t, y_ = _integrate(t, y_)
-		if t_eval is not None and t >= t_eval.max() + step / 2:
-			break
-		if t_eval is not None:
+	
+	count, y_ = 0, y0.copy()
+	y_vec[:, 0] = y_
+	for _, t in enumerate(times[:-1]):
+		t_, y_ = _integrate(t, y_)
+		if (_ + 1) % spacing == 0:
 			count += 1
-			if count % spacing == 0:
-				count = 0
-				t_vec.append(t)
-				y_vec = xp.concatenate((y_vec, y_[..., xp.newaxis]), axis=-1)
-		else:
-			t_vec.append(t)
-			y_vec = xp.concatenate((y_vec, y_[..., xp.newaxis]), axis=-1)
+			y_vec[:, count] = y_
 		if command is not None:
-			command(t, y_)
-	t_vec = xp.asarray(t_vec)
+			command(t_, y_)
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, method:str='BM4', omega:float=10, command:Callable=None, check_energy:bool=False) -> OdeSolution:

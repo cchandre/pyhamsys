@@ -364,7 +364,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 
 	times = xp.linspace(t0, tf, int(xp.ceil((tf - t0) / step)) + 1)
 	t_vec = times[::spacing]
-	y_vec = xp.empty(y0.shape + t_vec.shape)
+	y_vec = xp.empty(y0.shape + t_vec.shape, dtype=y0.dtype)
 	y_vec[:] = xp.nan
 
 	def _integrate(t:float, y:xp.ndarray) -> Tuple[float, xp.ndarray]:

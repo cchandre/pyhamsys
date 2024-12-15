@@ -309,9 +309,9 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	step : float
 		Step size.
 	t_eval : array_like or None, optional
-		Times at which to store the computed solution, must be sorted and 
-		equally spaced, and lie within `t_span`. If None (default), use points 
-		selected by the solver.
+		Times at which to store the computed solution, must be sorted and, 
+		lie within `t_span`. If None (default), use points selected by the 
+		solver.
 	method : string, optional
         Integration methods are listed on https://pypi.org/project/pyhamsys/ 
 		'BM4' is the default.
@@ -412,13 +412,14 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		integrates until it reaches t=tf. Both t0 and tf must be floats or   
 		values interpretable by the float conversion function.	 
 	y0 : array_like, shape (2n,)
-		Initial state y0. If hs is complex y0 = (q0 + i p0) / sqrt(2) where q0 are the initial positions and p0 the initial momenta. Otherwise y0 = (q0, p0). 
+		Initial state y0. If hs is complex y0 = (q0 + i p0) / sqrt(2) where q0
+		are the initial positions and p0 the initial momenta. 
+		Otherwise y0 = (q0, p0). 
 	step : float
 		Step size.
 	t_eval : array_like or None, optional
-		Times at which to store the computed solution, must be sorted and   
-		equally spaced, and lie within `t_span`. If None (default), use points  
-		selected by the solver.
+		Times at which to store the computed solution, must be sorted, and lie 
+		within `t_span`. If None (default), use points selected by the solver.
 	method : string, optional
         Integration methods are listed on https://pypi.org/project/pyhamsys/  
 		'BM4' is the default.
@@ -435,7 +436,8 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	t : ndarray, shape (n_points,)  
 		Time points.
 	y : ndarray, shape (2n, n_points) real array or  (n, n_points) complex array
-		If hs real, y(t) = (q(t), p(t)) at `t`. If hs complex, y(t) = (q(t) + i p(t)) / sqrt(2)
+		If hs real, y(t) = (q(t), p(t)) at `t`. 
+		If hs complex, y(t) = (q(t) + i p(t)) / sqrt(2)
 	k : ndarray, shape (n_points,)
 		Values of k(t) at `t` if `check_energy` is True and if the Hamiltonian
 		system has an explicit time dependence.   

@@ -105,7 +105,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
   - `step` : float   
 	Step size.
   - `t_eval` : array_like or None, optional  
-	Times at which to store the computed solution, must be sorted and equally spaced, and lie within `t_span`. If None (default), use points selected by the solver.
+	Times at which to store the computed solution, must be sorted, and lie within `t_span`. If None (default), use points selected by the solver.
   - `method` : string, optional  
  	Integration methods are listed on [pyhamsys](https://pypi.org/project/pyhamsys/).   
 	'BM4' is the default.

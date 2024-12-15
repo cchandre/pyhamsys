@@ -346,24 +346,14 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 			raise ValueError("`t_eval` must be 1-dimensional.")
 		if xp.any(t_eval < t0) or xp.any(t_eval > tf):
 			raise ValueError("Values in `t_eval` are not within `t_span`.")
-		if not xp.isclose(t_eval[0], t0):
-			t_eval = xp.insert(t_eval, 0, t0)
 		if xp.any(xp.diff(t_eval) <= 0):
 			raise ValueError("Values in `t_eval` are not properly sorted.")
-		if not xp.allclose(xp.diff(t_eval), xp.diff(t_eval)[0]):
-			raise ValueError("Values in `t_eval` are not equally spaced or t_span[0] is not in `t_eval`.")
-
-	if t_eval is not None:
-		step = ((t_eval[1] - t_eval[0])) / xp.ceil((t_eval[1] - t_eval[0]) / step)
-		spacing = int(xp.ceil((t_eval[1] - t_eval[0]) / step))
-		tf = min(tf, t_eval.max())
-	else:
-		step = (tf - t0) / xp.ceil((tf - t0) / step)
-		spacing = 1
+		
+	step = (tf - t0) / xp.ceil((tf - t0) / step)
 	alpha_s = integrator.alpha_s * step
 
 	times = xp.linspace(t0, tf, int(xp.ceil((tf - t0) / step)) + 1)
-	t_vec = times[::spacing]
+	t_vec = xp.empty_like(t_eval if t_eval is not None else times)
 	y_vec = xp.empty(y0.shape + t_vec.shape, dtype=y0.dtype)
 	y_vec[:] = xp.nan
 
@@ -374,14 +364,15 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		return t, y
 	
 	count, y_ = 0, y0.copy()
-	y_vec[:, 0] = y_
-	for _, t in enumerate(times[:-1]):
-		t_, y_ = _integrate(t, y_)
-		if (_ + 1) % spacing == 0:
-			count += 1
+	for _, t in enumerate(times):
+		if (count <= len(t_eval) - 1) and (xp.abs(times - t_eval[count]).argmin() == _):
+			t_vec[count] = t
 			y_vec[:, count] = y_
+			count += 1
 		if command is not None:
-			command(t_, y_)
+			command(t, y_)
+		if t != times[-1]:
+			y_ = _integrate(t, y_)[1]
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, method:str='BM4', omega:float=10, command:Callable=None, check_energy:bool=False) -> OdeSolution:

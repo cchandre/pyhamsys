@@ -513,7 +513,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	
 	y_ = xp.tile(y0, 2).astype(xp.complex128 if hs._complex else xp.float64)
 	if check_energy_:
-		y_ = xp.append(y_, 0, 'constant')
+		y_ = xp.append(y_, 0)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=_command if command is not None else None)
 	y_ = hs._split(sol.y, 2 if hs._complex else 4, check_energy=check_energy_)
 	if hs._complex:

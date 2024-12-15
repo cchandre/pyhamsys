@@ -48,11 +48,11 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 	If False, the dynamical variables (q, p) are real and canonically conjugate. If True, the dynamical variables are (&psi;, &psi;<sup>*</sup>) where $\psi=(q + i p)/\sqrt{2}$. Default is False. 
 
 ### Attributes
-- `hamiltonian` : callable, optional
+- `hamiltonian` : callable, optional   
 	A function of (*t*, *y*) which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
 - `y_dot` : callable  
   	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*).
-- `k_dot` : callable, optional
+- `k_dot` : callable, optional   
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 
 ### Functions

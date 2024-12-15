@@ -58,7 +58,7 @@ class HamSys:
 		ys = xp.split(y[:-1] if check_energy else y, n)
 		if not check_energy:
 			return ys
-		return ys.append(y[-1])
+		return ys + (y[-1],)
 	
 	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable) -> xp.ndarray:
 		y_ = xp.split(y, 2)

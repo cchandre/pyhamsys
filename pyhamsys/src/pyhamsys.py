@@ -353,7 +353,9 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	alpha_s = integrator.alpha_s * step
 
 	times = xp.linspace(t0, tf, int(xp.ceil((tf - t0) / step)) + 1)
-	t_vec = xp.empty_like(t_eval if t_eval is not None else times)
+	if t_eval is None:
+		t_eval = times.copy()
+	t_vec = xp.empty_like(t_eval)
 	y_vec = xp.empty(y0.shape + t_vec.shape, dtype=y0.dtype)
 	y_vec[:] = xp.nan
 

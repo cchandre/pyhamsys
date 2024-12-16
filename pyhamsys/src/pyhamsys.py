@@ -356,10 +356,11 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		if xp.any(xp.diff(t_eval) <= 0):
 			raise ValueError("Values in `t_eval` are not properly sorted.")
 		
-	step = (tf - t0) / xp.ceil((tf - t0) / step)
+	nstep = int(xp.floor((tf - t0) / step))
+	step = (tf - t0) / nstep
 	alpha_s = integrator.alpha_s * step
 
-	times = xp.linspace(t0, tf, int(xp.ceil((tf - t0) / step)) + 1)
+	times = xp.linspace(t0, tf, nstep + 1)
 	if t_eval is None:
 		t_eval = times.copy()
 	t_vec = xp.empty_like(t_eval)

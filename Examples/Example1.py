@@ -31,7 +31,7 @@ from pyhamsys import HamSys, solve_ivp_sympext
 
 ## Parameters
 epsilon = 0.027				# parameter of the Hamiltonian system
-tstep = 2 * np.pi / 10		# integration timestep 
+step = 2 * np.pi / 50		# integration timestep 
 N = 200  					# number of trajectories
 nf = 1500 					# number of points on the Poincaré section per trajectory
 
@@ -55,8 +55,8 @@ p0 = np.random.random(N)
 y0 = np.concatenate((x0, p0), axis=None)
 
 ## Integration
-sol = solve_ivp_sympext(hs, (0, 2 * np.pi * nf), y0, step=tstep, t_eval=2 * np.pi * np.arange(nf + 1), check_energy=True)
-print(sol.err)
+sol = solve_ivp_sympext(hs, (0, 2 * np.pi * nf), y0, step=step, t_eval=2 * np.pi * np.arange(nf + 1, dtype=np.float64), check_energy=True)
+print(f'Numerical error in the total energy = {sol.err}')
 
 ## Plot of the Poincaré section
 fig, ax = plt.subplots()

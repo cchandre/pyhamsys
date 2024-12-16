@@ -40,17 +40,17 @@ class OdeSolution(OptimizeResult):
     pass
 
 class HamSys:
-	def __init__(self, ndof:float=1, complex:bool=False, hamilton_eqn:Callable=None,\
-			   hamilton_keqn:Callable=None, hamiltonian:Callable=None) -> None:
+	def __init__(self, ndof:float=1, complex:bool=False, y_dot:Callable=None,\
+			   k_dot:Callable=None, hamiltonian:Callable=None) -> None:
 		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
 			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
 		self._ndof = int(ndof)
 		self._time_dependent = bool(str(ndof).count('.5'))
 		self._complex = complex
-		if hamilton_eqn is not None:
-			self.y_dot = hamilton_eqn
-		if hamilton_keqn is not None:
-			self.k_dot = hamilton_keqn
+		if y_dot is not None:
+			self.y_dot = y_dot
+		if k_dot is not None:
+			self.k_dot = k_dot
 		if hamiltonian is not None:
 			self.hamiltonian = hamiltonian
 

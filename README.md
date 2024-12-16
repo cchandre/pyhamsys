@@ -49,7 +49,7 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 
 ### Parameters and Attributes
 - `y_dot` : callable, optional
-  	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*).
+  	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In (real) canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). In complex coordinate &psi;, this function returns -i &part;*H*/&part;&psi;<sup>*</sup>.
 - `k_dot` : callable, optional   
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 - `hamiltonian` : callable, optional   

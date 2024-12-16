@@ -61,14 +61,16 @@ class HamSys:
 		return ys
 	
 	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable) -> xp.ndarray:
-		y_ = xp.split(y, 2)
-		return xp.asarray(eqn(y_[0], y_[1], t)).flatten()
+		q, p = xp.split(y, 2)
+		return xp.asarray(eqn(q, p, t)).flatten()
 	
 	def rectify_sol(self, sol:OdeSolution, check_energy:bool=False) -> OdeSolution:
 		if not check_energy:
 			return sol
 		if self._time_dependent:
 			sol.y, sol.k = sol.y[:-1, :], sol.y[-1, :]
+		if not hasattr(self, 'hamiltonian'):
+			raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
 		sol.err = self.compute_energy(sol)
 		return sol
 	
@@ -93,8 +95,6 @@ class HamSys:
 		self.k_dot = partial(self._create_function, eqn=eqn_t)
 
 	def compute_energy(self, sol:OdeSolution, maxerror:bool=True) -> xp.ndarray:
-		if not hasattr(self, 'hamiltonian'):
-			raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
 		val_h = xp.empty_like(sol.t)
 		for _, t in enumerate(sol.t):
 			val_h[_] = self.hamiltonian(t, sol.y[:, _])
@@ -511,6 +511,8 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		raise ValueError("The attribute 'y_dot' must be provided.")
 	if check_energy_ and not hasattr(hs, 'k_dot'):
 		raise ValueError("In order to check energy for a time-dependent system, the attribute 'k_dot' must be provided.")
+	if check_energy and not hasattr(hs, 'hamiltonian'):
+		raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
 	
 	y_ = xp.tile(y0, 2).astype(xp.complex128 if hs._complex else xp.float64)
 	if check_energy_:

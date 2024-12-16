@@ -37,16 +37,16 @@ nf = 1500 					# number of points on the Poincaré section per trajectory
 
 ## Hamiltonian systems and equations of motion 
 def y_dot(t, y):
-	y_ = np.split(y, 2)
-	return np.concatenate((y_[1], epsilon * (np.sin(y_[0] - t) + np.sin(y_[0]))), axis=None)
+	x, p = np.split(y, 2)
+	return np.concatenate((p, epsilon * (np.sin(x - t) + np.sin(x))), axis=None)
 
 def hamiltonian(t, y):
-	y_ = np.split(y, 2)
-	return np.sum(y_[1]**2 / 2 + epsilon * (np.cos(y_[0] - t) + np.cos(y_[0])))
+	x, p = np.split(y, 2)
+	return np.sum(p**2 / 2 + epsilon * (np.cos(x - t) + np.cos(x)))
 
 def k_dot(t, y):
-	y_ = np.split(y, 2)
-	return -epsilon * np.sum(np.sin(y_[0] - t))
+	x = np.split(y, 2)[0]
+	return -epsilon * np.sum(np.sin(x - t))
 
 hs = HamSys(ndof=N + 0.5, y_dot=y_dot, k_dot=k_dot, hamiltonian=hamiltonian)
 	

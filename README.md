@@ -46,18 +46,14 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
        	'ndof' should be an integer or half an integer. Half integers denote an explicit time dependence.
 - `complex` : bolean   
 	If False, the dynamical variables (q, p) are real and canonically conjugate. If True, the dynamical variables are (&psi;, &psi;<sup>*</sup>) where $\psi=(q + i p)/\sqrt{2}$. Default is False.
-- `hamilton_eqn` : callable, optional
-  	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*).
-- `hamilton_keqn` : callable, optional   
-	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 
-### Attributes
-- `hamiltonian` : callable, optional   
-	A function of (*t*, *y*) which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
-- `y_dot` : callable, optional   
+### Parameters and Attributes
+- `y_dot` : callable, optional
   	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*).
 - `k_dot` : callable, optional   
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
+- `hamiltonian` : callable, optional   
+	A function of (*t*, *y*) which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
 
 ### Functions
 - `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables (SymPy), computes the vector fields, `y_dot` and `k_dot`.
@@ -157,5 +153,7 @@ print(f"Error in energy : {sol.err}")
 plt.plot(sol.y[0], sol.y[1])
 plt.show()
 ```
+For more examples, see the folder [Examples](https://github.com/cchandre/pyhamsys/tree/main/Examples)
+
 ---
 For more information: <cristel.chandre@cnrs.fr>

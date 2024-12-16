@@ -40,7 +40,7 @@ xgrid = np.linspace(-L, L, N, endpoint=False, dtype=np.float64)
 vgrid = potential(xgrid).astype(np.complex128)
 dx = xgrid[1] - xgrid[0]
 
-## Hamiltonian systems, equations of motion and plot of wavefunction
+## Hamiltonian system and equations of motion
 def y_dot(t, psi):
 	psi_, _psi = np.roll(psi, 1), np.roll(psi, -1)
 	lap_psi = (psi_ + _psi - 2 * psi) / dx**2
@@ -48,6 +48,7 @@ def y_dot(t, psi):
 
 hs = HamSys(ndof=N, complex=True, y_dot=y_dot)
 
+## Integration and plot of wavefunction
 plt.ion()
 fig, ax = plt.subplots()
 h, = ax.plot(xgrid, np.abs(psi0(xgrid))**2, 'k', linewidth=2)

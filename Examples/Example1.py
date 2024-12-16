@@ -32,30 +32,32 @@ from pyhamsys import HamSys, solve_ivp_sympext
 ## Parameters
 epsilon = 0.027				# parameter of the Hamiltonian system
 step = 2 * np.pi / 50		# integration timestep 
-N = 200  					# number of trajectories
-nf = 1500 					# number of points on the Poincaré section per trajectory
+N = 100  					# number of trajectories
+nf = 1000 					# number of points on the Poincaré section per trajectory
 
-## Hamiltonian systems and equations of motion 
+## Hamiltonian system and equations of motion 
 def y_dot(t, y):
 	x, p = np.split(y, 2)
 	return np.concatenate((p, epsilon * (np.sin(x - t) + np.sin(x))), axis=None)
-
-def hamiltonian(t, y):
-	x, p = np.split(y, 2)
-	return np.sum(p**2 / 2 + epsilon * (np.cos(x - t) + np.cos(x)))
 
 def k_dot(t, y):
 	x = np.split(y, 2)[0]
 	return -epsilon * np.sum(np.sin(x - t))
 
+def hamiltonian(t, y):
+	x, p = np.split(y, 2)
+	return np.sum(p**2 / 2 + epsilon * (np.cos(x - t) + np.cos(x)))
+
 hs = HamSys(ndof=N + 0.5, y_dot=y_dot, k_dot=k_dot, hamiltonian=hamiltonian)
 	
+## Initial conditions
 x0 = 2 * np.pi * np.random.random(N)
 p0 = np.random.random(N)
 y0 = np.concatenate((x0, p0), axis=None)
 
 ## Integration
-sol = solve_ivp_sympext(hs, (0, 2 * np.pi * nf), y0, step=step, t_eval=2 * np.pi * np.arange(nf + 1, dtype=np.float64), check_energy=True)
+sol = solve_ivp_sympext(hs, (0, 2 * np.pi * nf), y0, step=step, t_eval=2 * np.pi * np.arange(nf + 1), check_energy=True)
+
 print(f'Numerical error in the total energy = {sol.err}')
 
 ## Plot of the Poincaré section

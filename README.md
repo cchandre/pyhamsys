@@ -153,7 +153,7 @@ print(f"Error in energy : {sol.err}")
 plt.plot(sol.y[0], sol.y[1])
 plt.show()
 ```
-For more examples, see the folder [Examples]()
+For more examples, see the folder [Examples](https://github.com/cchandre/pyhamsys/tree/main/Examples)
 
 ---
 For more information: <cristel.chandre@cnrs.fr>

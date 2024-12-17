@@ -1,9 +1,10 @@
 # pyHamSys
-pyHamSys is a Python package for scientific computing involving Hamiltonian systems
+pyHamSys (short for Python Hamiltonian Systems) is a Python library for scientific computing involving Hamiltonian systems. It provides tools to model, analyze, and simulate Hamiltonian systems.
 
 ![PyPI](https://img.shields.io/pypi/v/pyhamsys)
 ![License](https://img.shields.io/badge/license-BSD-lightgray)
 
+## Installation 
 Installation within a Python virtual environment: 
 ```
 python3 -m pip install pyhamsys
@@ -58,7 +59,7 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 ### Functions
 - `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables (SymPy), computes the vector fields, `y_dot` and `k_dot`.
 
-	Determine Hamilton's equations of motion from a given scalar function &ndash;the Hamiltonian&ndash; *H*(*q*, *p*, *t*) where *q* and *p* are respectively positions and momenta.
+	Determine Hamilton's equations of motion from a given scalar function &ndash;the Hamiltonian&ndash; *H*(*q*, *p*, *t*) where *q* and *p* are respectively positions and momenta. However, it is preferrable to code explicitly and optimize `y_dot` and `k_dot`.
 
 	#### Parameters
 	- `hamiltonian` : callable

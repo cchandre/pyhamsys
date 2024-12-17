@@ -55,7 +55,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 
 ### Parameters and Attributes
 - `y_dot` : callable, optional   
-  	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In (real) canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). In complex coordinate &psi;, this function returns -i &part;*H*/&part;&psi;<sup>*</sup>.
+  	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In (real) canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). In complex coordinate &psi;, this function returns -i &part;*H*/&part;&psi;<sup>*</sup>. For practical implementation, the state vector *y* should be represented as a one-dimensional array with a shape of (n,), where n denotes the total number of dynamical variables in the system. This ensures compatibility with numerical solvers and facilitates efficient computation of the system's evolution.  
 - `k_dot` : callable, optional   
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 - `hamiltonian` : callable, optional   
@@ -106,8 +106,8 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	The attributes `y_dot` of `hs` should be defined. If `check_energy` is True. It the Hamiltonian system has an explicit time dependence (i.e., the parameter `ndof` of `hs`  is half an integer), the attribute `k_dot` of `hs` should be specified. 
   - `t_span` : 2-member sequence  
 	Interval of integration (*t*<sub>0</sub>, *t*<sub>f</sub>). The solver starts with *t*=*t*<sub>0</sub> and integrates until it reaches *t*=*t*<sub>f</sub>. Both *t*<sub>0</sub> and *t*<sub>f</sub> must be floats or values interpretable by the float conversion function.	
-  - `y0` : array_like, shape (n,)  
-	Initial state.
+  - `y0` : array_like  
+	Initial state. For `solve_ivp_sympext`, the vector `y0` should be with shape (n,).
   - `step` : float   
 	Step size.
   - `t_eval` : array_like or None, optional  
@@ -117,8 +117,8 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	'BM4' is the default.
   - `omega` (for `solve_ivp_sympext`) : float, optional  
    	Coupling parameter in the extended phase space (see [3]). Default = 10.
-  - `command` : function of (*t*, *y*)  
-	Function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, or register specific events).
+  - `command` : void function of (*t*, *y*), optional    
+	Void function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, modify global or mutable variables, or register specific events).
   - `check_energy` (for `solve_ivp_sympext`) : bool, optional  
 	If True, the attribute `hamiltonian` of `hs` should be defined. Default is False. 
 

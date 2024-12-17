@@ -40,13 +40,14 @@ pyHamSys includes a class SymplecticIntegrator containing the following symplect
 All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator. These integrators are used in the functions `solve_ivp_symp` and `solve_ivp_sympext` by specifying the entry `method` (default is `BM4`). 
 
 ----
-## HamSys class
+## HamSys class   
+The `HamSys` class provides a robust framework for defining and integrating Hamiltonian systems. It allows users to specify the number of degrees of freedom, coordinate representations, and key attributes like the Hamiltonian and associated equations of motion.
 
 ### Parameters
-- `ndof` : number of degrees of freedom of the Hamiltonian system
-       	'ndof' should be an integer or half an integer. Half integers denote an explicit time dependence.
-- `complex` : bolean   
-	If False, the dynamical variables (q, p) are real and canonically conjugate. If True, the dynamical variables are (&psi;, &psi;<sup>*</sup>) where $\psi=(q + i p)/\sqrt{2}$. Default is False.
+- `ndof` : integer or half-integer   
+       	The number of degrees of freedom in the Hamiltonian system. Half integers denote an explicit time dependence.
+- `complex` : bool, optional  
+	If False, the dynamical variables (*q*, *p*) are real and canonically conjugate. If True, the dynamical variables are (&psi;, &psi;<sup>*</sup>) where $\psi=(q + i p)/\sqrt{2}$. Default is False.
 
 ### Parameters and Attributes
 - `y_dot` : callable, optional

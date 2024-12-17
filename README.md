@@ -44,8 +44,8 @@ All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*
 The `HamSys` class provides a robust framework for defining and integrating Hamiltonian systems. It allows users to specify the number of degrees of freedom, coordinate representations, and key attributes like the Hamiltonian and associated equations of motion.
 
 ### Parameters
-- `ndof` : integer or half-integer   
-       	The number of degrees of freedom in the Hamiltonian system. Half integers denote an explicit time dependence.
+- `ndof` : integer or half-integer, optional   
+       	The number of degrees of freedom in the Hamiltonian system. Half integers denote an explicit time dependence. Default is 1.  
 - `complex` : bool, optional  
 	If False, the dynamical variables (*q*, *p*) are real and canonically conjugate. If True, the dynamical variables are (&psi;, &psi;<sup>*</sup>) where $\psi=(q + i p)/\sqrt{2}$. Default is False.
 

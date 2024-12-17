@@ -103,7 +103,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y* at time *t*.
 	`chi_star` must return an array of the same shape as `y`.
   - `hs` (for `solve_ivp_sympext`) : element of class HamSys  
-	The attributes `y_dot` of `hs` should be defined. If `check_energy` is True. It the Hamiltonian system has an explicit time dependence (i.e., the parameter `ndof` of `hs`  is half an integer), the attribute `k_dot` of `hs` should be specified. 
+	The attribute `y_dot` of `hs` should be defined. If `check_energy` is True, the attribute `hamiltonian`  and if the Hamiltonian system has an explicit time dependence (i.e., the parameter `ndof` of `hs`  is a half-integer), the attribute `k_dot` of `hs` should be specified. 
   - `t_span` : 2-member sequence  
 	Interval of integration (*t*<sub>0</sub>, *t*<sub>f</sub>). The solver starts with *t*=*t*<sub>0</sub> and integrates until it reaches *t*=*t*<sub>f</sub>. Both *t*<sub>0</sub> and *t*<sub>f</sub> must be floats or values interpretable by the float conversion function.	
   - `y0` : array_like  
@@ -113,10 +113,9 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
   - `t_eval` : array_like or None, optional  
 	Times at which to store the computed solution, must be sorted, and lie within `t_span`. If None (default), use points selected by the solver.
   - `method` : string, optional  
- 	Integration methods are listed on [pyhamsys](https://pypi.org/project/pyhamsys/).   
-	'BM4' is the default.
+ 	Integration methods are listed on [pyhamsys](https://pypi.org/project/pyhamsys/). Default is 'BM4'.
   - `omega` (for `solve_ivp_sympext`) : float, optional  
-   	Coupling parameter in the extended phase space (see [3]). Default = 10.
+   	Coupling parameter in the extended phase space (see [3]). Default is 10.
   - `command` : void function of (*t*, *y*), optional    
 	Void function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, modify global or mutable variables, or register specific events).
   - `check_energy` (for `solve_ivp_sympext`) : bool, optional  

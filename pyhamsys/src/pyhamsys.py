@@ -312,7 +312,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		Interval of integration (t0, tf). The solver starts with t=t0 and
 		integrates until it reaches t=tf. Both t0 and tf must be floats or 
 		values interpretable by the float conversion function.	
-	y0 : array_like, shape (n,)
+	y0 : array_like
 		Initial state.
 	step : float
 		Step size.
@@ -378,7 +378,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	for _, t in enumerate(times):
 		if (count <= len(t_eval) - 1) and (xp.abs(times - t_eval[count]).argmin() == _):
 			t_vec[count] = t
-			y_vec[:, count] = y_
+			y_vec[..., count] = y_
 			count += 1
 		if command is not None:
 			command(t, y_)

@@ -26,7 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as np
-import sympy as sp
 import matplotlib.pyplot as plt
 from pyhamsys import HamSys, solve_ivp_sympext
 

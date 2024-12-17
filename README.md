@@ -126,11 +126,11 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 &nbsp; Bunch object with the following fields defined:
    - `t` : ndarray, shape (n_points,)  
 	Time points.
-   - `y` : ndarray, shape (n, n_points)  
+   - `y` : ndarray, shape y0.shape + (n_points,)  
 	Values of the solution `y` at `t`.
-   - `k` (for `solve_ivp_sympext`) : ndarray, shape (n_points,)
+   - `k` (for `solve_ivp_sympext`) : ndarray, shape (n_points,)   
      	Values of `k` at `t`. Only for `solve_ivp_sympext` and if `check_energy` is True for a Hamiltonian system with an explicit time dependence (i.e., the parameter `ndof` of `hs`  is half an integer).
-   - `err` (for `solve_ivp_sympext`) : float
+   - `err` (for `solve_ivp_sympext`) : float   
      	Error in the computation of the total energy. Only for `solve_ivp_sympext` and if `check_energy` is True.
    - `step` : step size used in the computation.
 

@@ -55,14 +55,14 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 
 ### Parameters and Attributes
 - `y_dot` : callable, optional   
-  	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In (real) canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). In complex coordinate &psi;, this function returns -i &part;*H*/&part;&psi;<sup>*</sup>. For practical implementation, the state vector *y* should be represented as a one-dimensional array with a shape of (n,), where n denotes the total number of dynamical variables in the system. This ensures compatibility with numerical solvers and facilitates efficient computation of the system's evolution.  
+  	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In (real) canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). In complex coordinate &psi;, this function returns -i &part;*H*/&part;&psi;<sup>*</sup>. For practical implementation, the state vector *y* should be represented as a one-dimensional array with a shape of (*n*,), where *n* denotes the total number of dynamical variables in the system. This ensures compatibility with numerical solvers and facilitates efficient computation of the system's evolution.  
 - `k_dot` : callable, optional   
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 - `hamiltonian` : callable, optional   
 	A function of (*t*, *y*) which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
 
 ### Functions
-- `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables (SymPy), computes the vector fields, `y_dot` and `k_dot`.
+- `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables ([SymPy](https://www.sympy.org/en/index.html)), computes the vector fields, `y_dot` and `k_dot`.
 
 	Determine Hamilton's equations of motion from a given scalar function &ndash;the Hamiltonian&ndash; *H*(*q*, *p*, *t*) where *q* and *p* are respectively positions and momenta. However, it is preferrable to code explicitly and optimize `y_dot` and `k_dot`.
 

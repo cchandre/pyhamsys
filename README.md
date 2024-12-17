@@ -50,7 +50,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 	If False, the dynamical variables (*q*, *p*) are real and canonically conjugate. If True, the dynamical variables are (&psi;, &psi;<sup>*</sup>) where $\psi=(q + i p)/\sqrt{2}$. Default is False.
 
 ### Parameters and Attributes
-- `y_dot` : callable, optional
+- `y_dot` : callable, optional   
   	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In (real) canonical coordinates (used, e.g., in `solve_ivp_sympext`) where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). In complex coordinate &psi;, this function returns -i &part;*H*/&part;&psi;<sup>*</sup>.
 - `k_dot` : callable, optional   
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
@@ -63,14 +63,14 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 	Determine Hamilton's equations of motion from a given scalar function &ndash;the Hamiltonian&ndash; *H*(*q*, *p*, *t*) where *q* and *p* are respectively positions and momenta. However, it is preferrable to code explicitly and optimize `y_dot` and `k_dot`.
 
 	#### Parameters
-	- `hamiltonian` : callable
+	- `hamiltonian` : callable   
 		Function *H*(*q*, *p*, *t*) &ndash;the Hamiltonian expressed in symbolic variables&ndash;, expressed using [SymPy](https://www.sympy.org/en/index.html) functions.
-	- `output` : bool, optional
+	- `output` : bool, optional   
 		If True, displays the equations of motion. Default is False.
 	
 	The function `compute_vector_field` determines the HamSys function attributes `y_dot` and `k_dot` to be used in `solve_ivp_sympext`. The derivatives are computed symbolically using SymPy.
 
-- `compute_energy` : callable
+- `compute_energy` : callable   
   	A function of `sol` &ndash;a solution provided by `solve_ivp_sympext`&ndash; and `maxerror`, a boolean indicating whether the maximum error in total energy is given (if True) or all the values of the total energy (if False). 
 	#### Parameters
 	- `sol` : OdeSolution  

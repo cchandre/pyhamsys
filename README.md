@@ -75,7 +75,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 	The function `compute_vector_field` determines the HamSys function attributes `y_dot` and `k_dot` to be used in `solve_ivp_sympext`. The derivatives are computed symbolically using SymPy.
 
 - `compute_energy` : callable   
-  	A function of `sol` &ndash;a solution provided by `solve_ivp_sympext`&ndash; and `maxerror`, a boolean indicating whether the maximum error in total energy is given (if True) or all the values of the total energy (if False). 
+  	A function of `sol` &ndash;a solution provided by `solve_ivp_sympext`&ndash; and a boolean `maxerror`. If `maxerror`is `True` the function `compute_energy` returns the maximum error in total energy; otherwise, it returns all the values of the total energy. 
 	#### Parameters
 	- `sol` : OdeSolution  
    		Solution provided by `solve_ivp_sympext`. 

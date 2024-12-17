@@ -12,7 +12,11 @@ python3 -m pip install pyhamsys
 For more information on creating a Python virtual environment, click [here](https://realpython.com/python-virtual-environments-a-primer/).
 
 ## Symplectic Integrators
-pyHamSys includes a class SymplecticIntegrator containing the following symplectic splitting integrators:
+
+pyHamSys features a dedicated class, `SymplecticIntegrator`, which provides a comprehensive implementation of symplectic-split integrators. These integrators are designed specifically for the numerical integration of Hamiltonian systems, ensuring the preservation of the symplectic structure of phase space—a key property that underpins the stability and accuracy of long-term simulations of such systems.
+Symplectic-split integrators decompose the Hamiltonian into subcomponents that are individually solvable, allowing for efficient and accurate integration. This decomposition is particularly effective for complex or high-dimensional systems, as it minimizes numerical drift and conserves critical invariants like energy over extended time intervals.
+The `SymplecticIntegrator` class offers a variety of splitting methods, enabling users to select the most appropriate scheme for their specific Hamiltonian system and computational requirements. Each integrator is implemented to handle both autonomous and non-autonomous systems, supporting applications in classical mechanics, molecular dynamics, astrophysics, and quantum mechanics.
+
 
 - `Verlet` (order 2, all purpose), also referred to as Strang or Störmer-Verlet splitting 
 - From [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L): 

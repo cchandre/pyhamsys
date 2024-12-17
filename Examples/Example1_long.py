@@ -26,14 +26,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as np
+import sympy as sp
 import matplotlib.pyplot as plt
 from pyhamsys import HamSys, solve_ivp_sympext
 
 ## Parameters
 epsilon = 0.027				# parameter of the Hamiltonian system
 step = 2 * np.pi / 50		# integration timestep 
-N = 100  					# number of trajectories
-nf = 1000 					# number of points on the Poincaré section per trajectory
+N = 50  					# number of trajectories
+nf = 1000					# number of points on the Poincaré section per trajectory
 
 ## Hamiltonian system and equations of motion 
 def y_dot(t, y):

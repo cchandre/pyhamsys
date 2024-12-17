@@ -74,7 +74,7 @@ class HamSys:
 		sol.err = self.compute_energy(sol)
 		return sol
 	
-	def compute_vector_field(self, hamiltonian:Callable, output:bool=False) -> None:
+	def compute_vector_field(self, hamiltonian:Callable, output:bool=False, check_energy:bool=False) -> None:
 		if self._complex:
 			raise ValueError("Computation of vector fields not implemented for complex Hamiltonians")
 		q = sp.symbols('q0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('q')
@@ -88,11 +88,12 @@ class HamSys:
 			print('y_dot : ', eqn)
 		eqn = sp.lambdify([q, p, t], eqn)
 		self.y_dot = partial(self._create_function, eqn=eqn)
-		eqn_t = -sp.simplify(sp.diff(hamiltonian(q, p, t), t))
-		if output and eqn_t!=0:
-			print('k_dot : ', eqn_t)
-		eqn_t = sp.lambdify([q, p, t], eqn_t)
-		self.k_dot = partial(self._create_function, eqn=eqn_t)
+		if self._time_dependent and check_energy:
+			eqn_t = -sp.simplify(sp.diff(hamiltonian(q, p, t), t))
+			if output and eqn_t!=0:
+				print('k_dot : ', eqn_t)
+			eqn_t = sp.lambdify([q, p, t], eqn_t)
+			self.k_dot = partial(self._create_function, eqn=eqn_t)
 
 	def compute_energy(self, sol:OdeSolution, maxerror:bool=True) -> xp.ndarray:
 		val_h = xp.empty_like(sol.t)

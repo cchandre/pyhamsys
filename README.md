@@ -161,4 +161,8 @@ plt.show()
 For more examples, see the folder [Examples](https://github.com/cchandre/pyhamsys/tree/main/Examples)
 
 ---
+
+This work has been carried out within the framework of the French Federation for Magnetic Fusion Studies (FR-FCM).
+
+---
 For more information: <cristel.chandre@cnrs.fr>

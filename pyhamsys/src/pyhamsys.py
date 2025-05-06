@@ -127,11 +127,11 @@ def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 		return sol.t, r2, diff_data, interp_data
 	return diff_data, interp_data
 
-def antiderivative(vec:xp.ndarray, N:int=2**10) -> xp.ndarray:
+def antiderivative(vec:xp.ndarray, N:int=2**10, axis=-1) -> xp.ndarray:
 	nu = rfftfreq(N, d=1/N)
 	div = xp.divide(1, 1j * nu, where=nu!=0)
 	div[0] = 0
-	return irfft(rfft(vec, axis=-1) * div, axis=-1)
+	return irfft(rfft(vec, axis=axis) * div, axis=axis)
 
 def padwrap(vec:xp.ndarray) -> xp.ndarray:
 	return xp.concatenate((vec, vec[..., 0][..., xp.newaxis]), axis=-1)

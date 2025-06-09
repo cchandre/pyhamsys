@@ -8,7 +8,7 @@ where = ["src"]
 [project]
 name = "pyhamsys"
 version = "0.62"
-license = "BSD-2-Clause"
+license = {text = "BSD-2-Clause"}
 keywords = ["Hamiltonian", "symplectic integrators", "ODE solver"]
 authors = [
   {name="Cristel Chandre", email="cristel.chandre@cnrs.fr"},

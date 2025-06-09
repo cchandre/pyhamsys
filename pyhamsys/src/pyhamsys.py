@@ -356,8 +356,9 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 			raise ValueError("Values in `t_eval` are not within `t_span`.")
 		if xp.any(xp.diff(t_eval) <= 0):
 			raise ValueError("Values in `t_eval` are not properly sorted.")
-		
-	n_eval = len(t_eval) - 1
+		n_eval = len(t_eval) - 1
+	else:
+		n_eval = int((tf - t0) / step) + 1
 	nstep = (int(xp.ceil((tf - t0) / step)) // n_eval) * n_eval + n_eval
 	step = (tf - t0) / nstep
 	alpha_s = integrator.alpha_s * step

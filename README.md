@@ -50,8 +50,8 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 ### Parameters
 - `ndof` : integer or half-integer, optional   
        	The number of degrees of freedom in the Hamiltonian system. Half integers denote an explicit time dependence. Default is 1.  
-- `complex` : bool, optional  
-	If False, the dynamical variables (*q*, *p*) are real and canonically conjugate. If True, the dynamical variables are (&psi;, &psi;<sup>*</sup>) where $\psi=(q + i p)/\sqrt{2}$. Default is False.
+- `btype` : str, optional
+  	Information on the Poisson bracket used in the equations of motion. For btype='pq', a canonical Poisson bracket in (p,q) is used, i.e., the dynamical variables (*q*, *p*) are real and canonically conjugate. If btype='psi', the dynamical variables are (&psi;, &psi;<sup>*</sup>) where $\psi=(q + i p)/\sqrt{2}$. Default is 'pq'. For other btype, the function `coupling` should be specified for the element of the class `HamSys`. 
 
 ### Parameters and Attributes
 - `y_dot` : callable, optional   
@@ -60,6 +60,8 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 - `hamiltonian` : callable, optional   
 	A function of (*t*, *y*) which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
+- `coupling` : callable, optional
+  	A function of (*h*, *y*, &omega;) which advances *y* from time *t* to *t*+*h* for the coupling Hamiltonian $\omega (y - \bar{y})^2/2$. This function is already computed for the types btype='pq' and 'psi'. For any other type, it should be provided. 
 
 ### Functions
 - `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables ([SymPy](https://www.sympy.org/en/index.html)), computes the vector fields, `y_dot` and `k_dot`.

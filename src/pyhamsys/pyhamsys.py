@@ -40,13 +40,15 @@ class OdeSolution(OptimizeResult):
     pass
 
 class HamSys:
-	def __init__(self, ndof:float=1, complex:bool=False, y_dot:Callable=None,\
+	def __init__(self, ndof:float=1, btype:str='pq', y_dot:Callable=None,\
 			   k_dot:Callable=None, hamiltonian:Callable=None) -> None:
 		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
 			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
 		self._ndof = int(ndof)
 		self._time_dependent = bool(str(ndof).count('.5'))
-		self._complex = complex
+		self.btype = btype
+		self._ysplit = 4 if btype=='pq' else 2
+		self._complex = True if btype=='psi' else False
 		if y_dot is not None:
 			self.y_dot = y_dot
 		if k_dot is not None:
@@ -75,8 +77,8 @@ class HamSys:
 		return sol
 	
 	def compute_vector_field(self, hamiltonian:Callable, output:bool=False, check_energy:bool=False) -> None:
-		if self._complex:
-			raise ValueError("Computation of vector fields not implemented for complex Hamiltonians")
+		if self.btype != 'pq':
+			raise ValueError("Computation of vector fields not implemented for these variables")
 		q = sp.symbols('q0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('q')
 		p = sp.symbols('p0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('p')
 		t = sp.Symbol('t')
@@ -471,15 +473,22 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	"""
 	check_energy_ = check_energy * hs._time_dependent
 
+	if hs.btype not in ['pq', 'psi'] and hasattr(hs, 'coupling')==False:
+		raise ValueError("The attribute 'coupling' should be defined")
+
 	J20, J22 = xp.array([[1, 1], [1, 1]]) / 2, xp.array([[1, -1], [-1, 1]]) / 2
 	J40, J42c, J42s = xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]]) / 2, \
 		xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]]) / 2, \
 		xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]]) / 2
 	
-	def _coupling(h:float) -> xp.ndarray:
-		if hs._complex:
-			return J20 + xp.exp(2j * omega * h) * J22
-		return J40 + xp.cos(2 * omega * h) * J42c + xp.sin(2 * omega * h) * J42s
+	def _coupling(h:float, y:xp.ndarray) -> xp.ndarray:
+		if hasattr(hs, 'coupling'):
+			return hs.coupling(h, y, omega).flatten()
+		if hs.btype == 'psi':
+			J = J20 + xp.exp(2j * omega * h) * J22
+		elif hs.btype == 'pq': 
+			J = J40 + xp.cos(2 * omega * h) * J42c + xp.sin(2 * omega * h) * J42s
+		return xp.einsum('ij,j...->i...', J, hs._split(y, hs._ysplit)).flatten()
 	
 	def _command(t:float, y:xp.ndarray):
 		return command(t, hs._split(y, 2, check_energy=check_energy_)[0])
@@ -493,15 +502,15 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		if check_energy_:
 			y_[-1] += h * hs.k_dot(t, y_[1])
 		yr = xp.concatenate((y_[0], y_[1]), axis=None)
-		yr = xp.einsum('ij,j...->i...', _coupling(h), hs._split(yr, 2 if hs._complex else 4)).flatten()
+		yr = _coupling(h, yr)
 		if not check_energy_:
 			return yr
 		return xp.concatenate((yr, y_[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs._split(y, 2 if hs._complex else 4, check_energy=check_energy_)
+		y_ = hs._split(y, hs._ysplit, check_energy=check_energy_)
 		yr = y_ if not check_energy_ else y_[:-1]
-		yr = xp.einsum('ij,j...->i...', _coupling(h), yr).flatten()
+		yr = _coupling(h, yr)
 		if check_energy_:
 			yr = xp.concatenate((yr, y_[-1]), axis=None) 
 		y_ = hs._split(yr, 2, check_energy=check_energy_)
@@ -524,8 +533,8 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	if check_energy_:
 		y_ = xp.append(y_, 0)
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=_command if command is not None else None)
-	y_ = hs._split(sol.y, 2 if hs._complex else 4, check_energy=check_energy_)
-	if hs._complex:
+	y_ = hs._split(sol.y, hs._ysplit, check_energy=check_energy_)
+	if hs._ysplit == 2:
 		sol.y = (y_[0] + y_[1]) / 2
 	else:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)

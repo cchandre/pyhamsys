@@ -488,7 +488,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 			J = J20 + xp.exp(2j * omega * h) * J22
 		elif hs.btype == 'pq': 
 			J = J40 + xp.cos(2 * omega * h) * J42c + xp.sin(2 * omega * h) * J42s
-		return xp.einsum('ij,j...->i...', J, hs._split(y, hs._ysplit)).flatten()
+		return xp.einsum('ij,j...->i...', J, xp.split(y, hs._ysplit)).flatten()
 	
 	def _command(t:float, y:xp.ndarray):
 		return command(t, hs._split(y, 2, check_energy=check_energy_)[0])
@@ -508,19 +508,17 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		return xp.concatenate((yr, y_[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs._split(y, hs._ysplit, check_energy=check_energy_)
-		yr = y_ if not check_energy_ else y_[:-1]
-		yr = _coupling(h, yr)
-		if check_energy_:
-			yr = xp.concatenate((yr, y_[-1]), axis=None) 
-		y_ = hs._split(yr, 2, check_energy=check_energy_)
+		yr = y if not check_energy_ else y[:-1]
+		y_ = xp.split(_coupling(h, yr), 2)
 		y_[0] += h * hs.y_dot(t, y_[1])
 		if check_energy_:
-			y_[-1] += h * hs.k_dot(t, y_[1])
+			y[-1] += h * hs.k_dot(t, y_[1])
 		y_[1] += h * hs.y_dot(t, y_[0])
 		if check_energy_:
-			y_[-1] += h * hs.k_dot(t, y_[0])
-		return xp.concatenate([_ for _ in y_], axis=None)
+			y[-1] += h * hs.k_dot(t, y_[0])
+		if not check_energy_:
+			return xp.concatenate((y_[0], y_[1]), axis=None)
+		return xp.concatenate((y_[0], y_[1], y[-1]), axis=None)
 	
 	if not hasattr(hs, 'y_dot'):
 		raise ValueError("The attribute 'y_dot' must be provided.")

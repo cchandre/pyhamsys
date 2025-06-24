@@ -5,3 +5,4 @@
 /build/
 /*.egg-info
 /pyhamsys/src/pyhamsys.egg-info/
+src/.DS_Store

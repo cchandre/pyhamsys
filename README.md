@@ -10,7 +10,8 @@ Installation within a Python virtual environment:
 ```
 python3 -m pip install pyhamsys
 ```
-For more information on creating a Python virtual environment, click [here](https://realpython.com/python-virtual-environments-a-primer/).
+For more information on creating a Python virtual environment, click [here](https://realpython.com/python-virtual-environments-a-primer/). For a summary with the main steps, click [here](https://github.com/cchandre/HamLorenz/wiki/Python-Virtual-Environment-Primer).
+
 
 ## Symplectic Integrators
 

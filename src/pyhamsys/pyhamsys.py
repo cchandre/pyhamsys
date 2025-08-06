@@ -458,7 +458,10 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		If hs complex, y(t) = (q(t) + i p(t)) / sqrt(2)
 	k : ndarray, shape (n_points,)
 		Values of k(t) at `t` if `check_energy` is True and if the Hamiltonian
-		system has an explicit time dependence.   
+		system has an explicit time dependence.  
+	dist_copy : float
+		Maximum distance between the two copies of the state in the extended 
+		phase space.
 	err : float
 		Error in the computation of the total energy, computed only if
 		`check_energy` is True. 
@@ -534,8 +537,10 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	y_ = hs._split(sol.y, hs._ysplit, check_energy=check_energy_)
 	if hs._ysplit == 2:
 		sol.y = (y_[0] + y_[1]) / 2
+		sol.dist_copy = xp.amax(xp.abs(y_[0] - y_[1]))
 	else:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
+		sol.dist_copy = max(xp.amax(xp.abs(y_[0] - y_[2])), xp.amax(xp.abs(y_[1] - y_[3])))
 	if check_energy_:
 		sol.k = y_[-1] / 2
 	if check_energy:

@@ -133,6 +133,8 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Values of the solution `y` at `t`.
    - `k` (for `solve_ivp_sympext`) : ndarray, shape (n_points,)   
      	Values of `k` at `t`. Only for `solve_ivp_sympext` and if `check_energy` is True for a Hamiltonian system with an explicit time dependence (i.e., the parameter `ndof` of `hs`  is half an integer).
+   - `dist_copy` (for `solve_ivp_sympext`) : float   
+        Maximum distance between the two copies of the state in the extended phase space.   
    - `err` (for `solve_ivp_sympext`) : float   
      	Error in the computation of the total energy. Only for `solve_ivp_sympext` and if `check_energy` is True.
    - `step` : step size used in the computation.

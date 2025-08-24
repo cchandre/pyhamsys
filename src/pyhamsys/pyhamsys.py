@@ -26,6 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as xp
+from scipy.integrate import solve_ivp
+from scipy.integrate._ivp.ivp import METHODS as IVP_METHODS
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from scipy.stats import linregress
@@ -35,6 +37,7 @@ from typing import Callable, Union, Tuple
 from scipy.optimize import OptimizeResult
 import sympy as sp
 from functools import partial 
+import time
 
 class OdeSolution(OptimizeResult):
     pass
@@ -104,6 +107,71 @@ class HamSys:
 		if self._time_dependent:
 			val_h += sol.k
 		return xp.max(xp.abs(val_h - val_h[0])) if maxerror else val_h
+	
+	def _y_dot_ext(self, t, z):
+		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
+	
+	def integrate(self, z0, t_eval, timestep, solver="BM4", extension=False, check_energy=False, omega=10, tol=1e-8, display=True):
+		"""
+		Integrate the system using either an IVP solver or a symplectic solver.
+
+		Parameters
+		----------
+		z0 : array_like
+			Initial condition(s).
+		t_eval : array_like
+			Times at which to store the solution.
+		timestep : float
+			Integration time step.
+		solver : str, optional
+			Solver method. Must be in METHODS or IVP_METHODS.
+		extension : bool, optional
+			Whether to use symplectic extension.
+		check_energy : bool, optional
+			If True, adds an auxiliary variable to check energy conservation.
+		omega : float, optional
+			Frequency parameter for symplectic extension solvers.
+		tol : float, optional
+			Absolute and relative tolerance for IVP solvers.
+		display : bool, optional
+			Whether to print runtime information.
+
+		Returns
+		-------
+		sol : object
+			Solution object with attributes depending on solver used.
+		"""
+		
+		valid_solvers = METHODS + IVP_METHODS
+		if solver not in valid_solvers:
+			raise ValueError(f"Solver '{solver}' not recognized. "
+                 f"Valid solvers are {valid_solvers}.")
+		if solver in IVP_METHODS or (solver in METHODS and extension):
+			if not hasattr(self, 'y_dot'):
+				raise ValueError("In order to use an IVP solver or an extension in phase space, 'y_dot' must be provided.")
+		if solver in METHODS and not extension:
+			if not hasattr(self, 'chi') or not hasattr(self, 'chi_star'):
+				raise ValueError("In order to use a symplectic integrator, 'chi' and 'chi_star' must be provided.")
+		if solver in IVP_METHODS and check_energy:
+			if not hasattr(self, 'k_dot'):
+				raise ValueError("In order to check energy with an IVP solver, 'k_dot' must be provided.")
+			z0 = xp.concatenate([z0, xp.zeros(1, dtype=z0.dtype)])
+		start = time.process_time()
+		if solver in IVP_METHODS:
+			sol = solve_ivp(self._y_dot_ext if check_energy else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=solver, atol=tol, rtol=tol, max_step=timestep)
+			sol = self.rectify_sol(sol, check_energy=check_energy)
+		elif extension:
+			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega)
+		else:
+			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver)
+		sol.cpu_time = time.process_time() - start
+		if display:
+			print(f'\033[90m        Computation finished in {int(sol.cpu_time)} seconds \033[00m')
+			if hasattr(sol, 'err'):
+				print(f'\033[90m           with error in energy = {sol.err:.2e} \033[00m')
+			if hasattr(sol, 'dist_copy'):
+				print(f'\033[90m           with distance in copies = {sol.dist_copy:.2e}\033[00m')
+		return sol
 
 def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 	x, y = xp.split(sol.y, 2)
@@ -546,3 +614,4 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 	if check_energy:
 		sol.err = hs.compute_energy(sol)
 	return sol
+

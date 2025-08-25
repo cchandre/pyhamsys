@@ -87,7 +87,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
     		Default is True.
 
 - `integrate` : callable   
-    Integrate the Hamiltonian system using either a **symplectic solver** (see above for a complete list) or a **standard IVP solver** (RK23', 'RK45', 'DOP853', 'Radau', 'BDF', 'LSODA'). Supports optional *symplectic extension* and *energy conservation checks*.
+    Integrate the Hamiltonian system using either a **symplectic solver** (see above for a complete list) or a **standard IVP solver** ('RK23', 'RK45', 'DOP853', 'Radau', 'BDF', 'LSODA'). Supports optional *symplectic extension* and *energy conservation checks*.
 
    #### Parameters
    - **z0** (`array_like`)  

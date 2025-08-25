@@ -160,6 +160,7 @@ class HamSys:
 		if solver in IVP_METHODS:
 			sol = solve_ivp(self._y_dot_ext if check_energy else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=solver, atol=tol, rtol=tol, max_step=timestep)
 			sol = self.rectify_sol(sol, check_energy=check_energy)
+			sol.step = timestep
 		elif extension:
 			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega)
 		else:

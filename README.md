@@ -87,8 +87,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
     		Default is True.
 
 - `integrate` : callable
-    Integrate the Hamiltonian system using either a **symplectic solver** or a **standard IVP solver**.  
-Supports optional *symplectic extension* and *energy conservation checks*.
+    Integrate the Hamiltonian system using either a **symplectic solver** (see above for a complete list) or a **standard IVP solver** (RK23', 'RK45', 'DOP853', 'Radau', 'BDF', 'LSODA'). Supports optional *symplectic extension* and *energy conservation checks*.
 
    #### Parameters
    - **z0** (`array_like`)  
@@ -102,10 +101,9 @@ Supports optional *symplectic extension* and *energy conservation checks*.
    - **extension** (`bool`, optional, default=`False`)  
   If `True`, use a symplectic extension method in phase space.  
    - **check_energy** (`bool`, optional, default=`False`)  
-  If `True`, appends an auxiliary variable to track the Hamiltonian.  
-  Requires `hamiltonian` and `k_dot` to be defined.  
+  If `True`, appends an auxiliary variable to track the Hamiltonian. Requires `hamiltonian` and `k_dot` to be defined.  
    - **omega** (`float`, optional, default=`10`)  
-  Frequency parameter for symplectic extension solvers.  
+  Restrain parameter for symplectic extension solvers.  
    - **tol** (`float`, optional, default=`1e-8`)  
   Absolute and relative tolerance for IVP solvers.  
    - **display** (`bool`, optional, default=`True`)  
@@ -123,11 +121,9 @@ Supports optional *symplectic extension* and *energy conservation checks*.
 
     #### Notes
     - **Symplectic solvers (`METHODS`)**  
-    Require `chi` and `chi_star` to be defined in the class.  
-    Preserves geometric properties of Hamiltonian flows.  
+    Require `chi` and `chi_star` to be defined in the class. Preserves geometric properties of Hamiltonian flows.  
     - **IVP solvers (`IVP_METHODS`)**  
-    Require `y_dot` (and `k_dot` if `check_energy=True`).  
-    Allow adaptive step sizes bounded by `timestep`.  
+    Require `y_dot` (and `k_dot` if `check_energy=True`). Allow adaptive step sizes bounded by `timestep`.  
     - **Energy checking**  
     When `check_energy=True`, an auxiliary variable is added and the error in Hamiltonian is computed relative to its initial value. 
 

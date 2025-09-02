@@ -177,6 +177,29 @@ class HamSys:
 			if hasattr(sol, 'dist_copy'):
 				print(f'\033[90m           with distance in copies = {sol.dist_copy:.2e}\033[00m')
 		return sol
+	
+	def compute_lyapunov(self, tf, z0, reortho_dt, tol=1e-8, solver='RK45'):
+		if solver not in IVP_METHODS:
+			raise ValueError(f"Solver {solver} is not recognized for Lyapunov exponent computation."
+							 f"Available solvers are {IVP_METHODS}.")
+		if not hasattr(self, 'y_dot_lyap'):
+			raise ValueError("In order to compute the Lyapunov spectrum, 'y_dot_lyap' must be provided.")
+		start = time.time()
+		n = len(z0) // 2
+		lyap_sum = xp.zeros((2, n), dtype=xp.float64)
+		t, z = 0, xp.concatenate((z0, xp.ones(n), xp.zeros(n), xp.zeros(n), xp.ones(n)), axis=None)
+		for _ in range(int(tf / reortho_dt)):
+			sol = solve_ivp(self.y_dot_lyap, (t, t + reortho_dt), z, method=solver, t_eval=[t + reortho_dt], atol=tol, rtol=tol)
+			z, Q = sol.y[:2 * n, -1], xp.moveaxis(sol.y[2 * n:, -1].reshape((2, 2, n)), -1, 0)
+			for i in range(n):
+				q, r = xp.linalg.qr(Q[i])
+				lyap_sum[:, i] += xp.log(xp.abs(xp.diag(r)))
+				Q[i] = q
+			t += reortho_dt
+			z = xp.concatenate((z, xp.moveaxis(Q, 0, -1)), axis=None)
+		print(f'\033[90m        Computation finished in {int(time.time() - start)} seconds \033[00m')
+		lyap_sort = xp.sort(lyap_sum / tf)
+		return lyap_sort
 
 def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 	x, y = xp.split(sol.y, 2)

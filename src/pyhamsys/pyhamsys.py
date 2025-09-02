@@ -39,6 +39,11 @@ import sympy as sp
 from functools import partial 
 import time
 
+METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL', 'PEFRL', 'VEFRL', 'BM4', 'BM6', 'RKN4b', 'RKN6b', 'RKN6a', 'ABA104', 'ABA864', 'ABA1064']
+
+IVP_METHODS = list(IVP_METHODS.keys())
+ALL_METHODS = METHODS + IVP_METHODS
+
 class OdeSolution(OptimizeResult):
     pass
 
@@ -142,10 +147,9 @@ class HamSys:
 			Solution object with attributes depending on solver used.
 		"""
 		
-		valid_solvers = METHODS + IVP_METHODS
-		if solver not in valid_solvers:
+		if solver not in ALL_METHODS:
 			raise ValueError(f"Solver '{solver}' not recognized. "
-                 f"Valid solvers are {valid_solvers}.")
+                 f"Valid solvers are {ALL_METHODS}.")
 		if solver in IVP_METHODS or (solver in METHODS and extension):
 			if not hasattr(self, 'y_dot'):
 				raise ValueError("In order to use an IVP solver or an extension in phase space, 'y_dot' must be provided.")
@@ -274,8 +278,6 @@ def field_envelope(t:float, te_au:xp.ndarray, envelope:str='sinus') -> float:
         return xp.where(t<=0, 0, xp.where(t<=te[0], t / te[0], xp.where(t<=te[1], 1, xp.where(t<=te[2], (te[2] - t) / te_au[2], 0))))
     else:
 	    raise NameError(f'{envelope} envelope not defined')
-	
-METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL', 'PEFRL', 'VEFRL', 'BM4', 'BM6', 'RKN4b', 'RKN6b', 'RKN6a', 'ABA104', 'ABA864', 'ABA1064']
 
 class SymplecticIntegrator:
 	"""

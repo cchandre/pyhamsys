@@ -178,7 +178,7 @@ class HamSys:
 				print(f'\033[90m           with distance in copies = {sol.dist_copy:.2e}\033[00m')
 		return sol
 	
-	def compute_lyapunov(self, tf, z0, reortho_dt, tol=1e-8, solver='RK45'):
+	def compute_lyapunov(self, tf, z0, reortho_dt, tol=1e-8, solver='RK45', display=True):
 		if solver not in IVP_METHODS:
 			raise ValueError(f"Solver {solver} is not recognized for Lyapunov exponent computation."
 							 f"Available solvers are {IVP_METHODS}.")
@@ -197,9 +197,9 @@ class HamSys:
 				Q[i] = q
 			t += reortho_dt
 			z = xp.concatenate((z, xp.moveaxis(Q, 0, -1)), axis=None)
-		print(f'\033[90m        Computation finished in {int(time.time() - start)} seconds \033[00m')
-		lyap_sort = xp.sort(lyap_sum / tf)
-		return lyap_sort
+		if display:
+			print(f'\033[90m        Computation finished in {int(time.time() - start)} seconds \033[00m')
+		return xp.sort(lyap_sum / tf)
 
 def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 	x, y = xp.split(sol.y, 2)

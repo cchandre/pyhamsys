@@ -35,9 +35,11 @@ from sklearn.metrics import r2_score
 from scipy.fft import rfft, irfft, rfftfreq
 from typing import Callable, Union, Tuple
 from scipy.optimize import OptimizeResult
+from scipy.io import savemat
 import sympy as sp
 from functools import partial 
 import time
+from datetime import datetime
 
 METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL', 'PEFRL', 'VEFRL', 'BM4', 'BM6', 'RKN4b', 'RKN6b', 'RKN6a', 'ABA104', 'ABA864', 'ABA1064']
 
@@ -200,6 +202,14 @@ class HamSys:
 		if display:
 			print(f'\033[90m        Computation finished in {int(time.time() - start)} seconds \033[00m')
 		return xp.sort(lyap_sum / tf)
+	
+	def save_data(self, data, params, filename=None, author=None, display=True):
+		params.update({'data': data})
+		params.update({'date': datetime.now().strftime(" %B %d, %Y\n"), 'author': author})
+		filename += '_' + datetime.now().strftime("%Y%m%d_%H%M%S") + '.mat'
+		savemat(filename, params)
+		if display:
+			print(f'\033[90m        Results saved in {filename} \033[00m')
 
 def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 	x, y = xp.split(sol.y, 2)

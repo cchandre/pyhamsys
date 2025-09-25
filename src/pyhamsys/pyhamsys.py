@@ -497,7 +497,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 			y_ = _integrate(t, y_)[1]
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
-def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, method:str='BM4', omega:float=10, command:Callable=None, check_energy:bool=False) -> OdeSolution:
+def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, method:str='BM4', omega:float=10, diss:float=0, command:Callable=None, check_energy:bool=False) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -597,6 +597,12 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 			J = J40 + xp.cos(2 * omega * h) * J42c + xp.sin(2 * omega * h) * J42s
 		return xp.einsum('ij,j...->i...', J, xp.split(y, hs._ysplit)).flatten()
 	
+	def _dissipate(h:float, y:xp.ndarray) -> xp.ndarray:
+		u = xp.exp(-h)
+		up, um = (1 + u) / 2, (1 - u) / 2
+		z1, z2 = xp.split(y, 2)
+		return xp.concatenate((up * z1 + um * z2, um * z1 + up * z2), axis=None)
+	
 	def _command(t:float, y:xp.ndarray):
 		return command(t, hs._split(y, 2, check_energy=check_energy_)[0])
 
@@ -610,12 +616,16 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 			y_[-1] += h * hs.k_dot(t, y_[1])
 		yr = xp.concatenate((y_[0], y_[1]), axis=None)
 		yr = _coupling(h, yr)
+		if diss != 0:
+			yr = _dissipate(h * diss, yr)
 		if not check_energy_:
 			return yr
 		return xp.concatenate((yr, y_[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
 		yr = y if not check_energy_ else y[:-1]
+		if diss != 0:
+			yr = _dissipate(h * diss, yr)
 		y_ = xp.split(_coupling(h, yr), 2)
 		y_[0] += h * hs.y_dot(t, y_[1])
 		if check_energy_:

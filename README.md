@@ -104,7 +104,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
   If `True`, appends an auxiliary variable to track the Hamiltonian. Requires `hamiltonian` and `k_dot` to be defined.  
    - **omega** (`float`, optional, default=`10`)  
   Restrain parameter for symplectic extension solvers.
-   - **diss** (`float`, optional, default=`0`)
+   - **diss** (`float`, optional, default=`0`)   
   Dissipative coefficient for improved accuracy when time steps are too large.   
    - **tol** (`float`, optional, default=`1e-8`)  
   Absolute and relative tolerance for IVP solvers.  

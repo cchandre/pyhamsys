@@ -118,7 +118,7 @@ class HamSys:
 	def _y_dot_ext(self, t, z):
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0, t_eval, timestep, solver="BM4", extension=False, check_energy=False, omega=10, diss=0, tol=1e-8, display=True):
+	def integrate(self, z0, t_eval, timestep=1e-2, solver="BM4", extension=False, check_energy=False, omega=10, diss=0, tol=1e-8, display=True):
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 

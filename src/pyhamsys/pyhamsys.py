@@ -118,7 +118,7 @@ class HamSys:
 	def _y_dot_ext(self, t, z):
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0, t_eval, timestep=1e-2, solver="BM4", extension=False, check_energy=False, omega=10, diss=0, tol=1e-8, display=True):
+	def integrate(self, z0, t_eval, extension=False, check_energy=False, display=True, solver="BM4", timestep=xp.inf, omega=10, diss=0, tol=1e-8):
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 
@@ -138,6 +138,8 @@ class HamSys:
 			If True, adds an auxiliary variable to check energy conservation.
 		omega : float, optional
 			Frequency parameter for symplectic extension solvers.
+		diss : float, optional
+			Dissipation parameter for symplectic extension solvers.
 		tol : float, optional
 			Absolute and relative tolerance for IVP solvers.
 		display : bool, optional
@@ -148,7 +150,6 @@ class HamSys:
 		sol : object
 			Solution object with attributes depending on solver used.
 		"""
-		
 		if solver not in ALL_METHODS:
 			raise ValueError(f"Solver '{solver}' not recognized. "
                  f"Valid solvers are {ALL_METHODS}.")
@@ -246,6 +247,10 @@ def antiderivative(vec:xp.ndarray, N:int=2**10, axis=-1) -> xp.ndarray:
 
 def padwrap(vec:xp.ndarray) -> xp.ndarray:
 	return xp.concatenate((vec, vec[..., 0][..., xp.newaxis]), axis=-1)
+
+def make_array(data, shape, squeeze=True):
+    arr = xp.asarray(data).reshape(*shape)
+    return xp.squeeze(arr) if squeeze else arr
 
 def get_last_elements(a:xp.ndarray, axis:int=0) -> None:
     shape = list(a.shape)
@@ -390,8 +395,8 @@ class SymplecticIntegrator:
 			self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
 			self.alpha_o = xp.tile([1, 0], len(alpha_s))
 	
-def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None,
-				   method:str='BM4', command:Callable=None) -> OdeSolution:
+def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray, t_eval:Union[list, xp.ndarray]=None,
+				   method:str='BM4', step:float=xp.inf, command:Callable=None) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic splitting scheme (see [1]).
@@ -423,8 +428,6 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		values interpretable by the float conversion function.	
 	y0 : array_like
 		Initial state.
-	step : float
-		Step size.
 	t_eval : array_like or None, optional
 		Times at which to store the computed solution, must be sorted and, 
 		lie within `t_span`. If None (default), use points selected by the 
@@ -432,6 +435,8 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	method : string, optional
         Integration methods are listed on https://pypi.org/project/pyhamsys/ 
 		'BM4' is the default.
+	step : float
+		Step size.
 	command : function of (t, y) 
 		Function to be run at each step size.   
 
@@ -442,7 +447,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		Time points.
 	y : ndarray, shape (n, n_points)  
 		Values of the solution at `t`.
-	step : step size used in the computation
+	step : step size actually used in the computation
 
 	References
 	----------
@@ -454,6 +459,11 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	"""
 	integrator = SymplecticIntegrator(method)
 	t0, tf = map(float, t_span)
+
+	if not xp.isfinite(step):
+		raise ValueError("Timestep must be a finite number.")
+	if step <= 0:
+		raise ValueError("The timestep must be strictly positive.")
 	
 	if t0 > tf:
 		raise ValueError("Values in `t_span` are not properly sorted.")
@@ -497,7 +507,9 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 			y_ = _integrate(t, y_)[1]
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
-def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval:Union[list, xp.ndarray]=None, method:str='BM4', omega:float=10, diss:float=0, command:Callable=None, check_energy:bool=False) -> OdeSolution:
+def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list, xp.ndarray]=None, 
+					  method:str='BM4', step:float=xp.inf, omega:float=10, diss:float=0, 
+					  command:Callable=None, check_energy:bool=False) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -537,14 +549,14 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, step:float, t_eval
 		Initial state y0. If hs is complex y0 = (q0 + i p0) / sqrt(2) where q0
 		are the initial positions and p0 the initial momenta. 
 		Otherwise y0 = (q0, p0). 
-	step : float
-		Step size.
 	t_eval : array_like or None, optional
 		Times at which to store the computed solution, must be sorted, and lie 
 		within `t_span`. If None (default), use points selected by the solver.
 	method : string, optional
         Integration methods are listed on https://pypi.org/project/pyhamsys/  
 		'BM4' is the default.
+	step : float
+		Step size.
 	omega : float, optional
 		Coupling parameter in the extended phase space (see [1])
 	command : function of (t, y) or None, optional

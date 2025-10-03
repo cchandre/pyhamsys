@@ -94,22 +94,22 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
   Initial condition(s) of the system.
    - **t_eval** (`array_like`)  
   Times at which the solution is evaluated and stored.
-   - **timestep** (`float`)  
-  Fixed integration time step (used in symplectic solvers and to bound steps in IVP solvers).
-   - **solver** (`str`, optional, default=`"BM4"`)  
-  Solver method. Must be a member of `METHODS` (symplectic solvers), or  `IVP_METHODS` (classical IVP solvers).  
    - **extension** (`bool`, optional, default=`False`)  
-  If `True`, use a symplectic extension method in phase space.  
+  If `True`, use a symplectic extension method in phase space.
    - **check_energy** (`bool`, optional, default=`False`)  
-  If `True`, appends an auxiliary variable to track the Hamiltonian. Requires `hamiltonian` and `k_dot` to be defined.  
+  If `True`, appends an auxiliary variable to track the Hamiltonian. Requires `hamiltonian` and `k_dot` to be defined.
+   - **display** (`bool`, optional, default=`True`)  
+  If `True`, prints runtime information such as CPU time, error in energy, and copy distance (if available).      
+   - **solver** (`str`, optional, default=`"BM4"`)  
+  Solver method. Must be a member of `METHODS` (symplectic solvers), or  `IVP_METHODS` (classical IVP solvers).
+   - **timestep** (`float`)  
+  Fixed integration time step (used in symplectic solvers and to bound steps in IVP solvers).    
    - **omega** (`float`, optional, default=`10`)  
   Restrain parameter for symplectic extension solvers.
    - **diss** (`float`, optional, default=`0`)   
   Dissipative coefficient for improved accuracy when time steps are too large.   
    - **tol** (`float`, optional, default=`1e-8`)  
   Absolute and relative tolerance for IVP solvers.  
-   - **display** (`bool`, optional, default=`True`)  
-  If `True`, prints runtime information such as CPU time, error in energy, and copy distance (if available).  
 
     #### Returns
    - **sol** (`object`)  

@@ -204,13 +204,21 @@ class HamSys:
 			print(f'\033[90m        Computation finished in {int(time.time() - start)} seconds \033[00m')
 		return xp.sort(lyap_sum / tf)
 	
-	def save_data(self, data, params, filename=None, author=None, display=True):
-		params.update({'data': data})
-		params.update({'date': datetime.now().strftime(" %B %d, %Y\n"), 'author': author})
-		filename += '_' + datetime.now().strftime("%Y%m%d_%H%M%S") + '.mat'
+	def save_data(self, *data, params=None, filename='', author='', display=True):
+		params = dict(params) if params else {}
+		for i, d in enumerate(data):
+			params[f'data{i}'] = d
+		params['date'] = datetime.now().strftime("%B %d, %Y")
+		if author:
+			params['author'] = author
+		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+		if not filename.endswith('.mat'):
+			filename = f"{filename}_{timestamp}.mat"
+		else:
+			filename = filename.replace('.mat', f'_{timestamp}.mat')
 		savemat(filename, params)
 		if display:
-			print(f'\033[90m        Results saved in {filename} \033[00m')
+			print(f"\033[90m        Results saved in {filename}\033[00m")
 
 def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 	x, y = xp.split(sol.y, 2)

@@ -4,6 +4,7 @@ pyHamSys (short for Python Hamiltonian Systems) is a Python library for scientif
 ![PyPI](https://img.shields.io/pypi/v/pyhamsys)
 ![License](https://img.shields.io/badge/license-BSD-lightgray)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/pyhamsys.svg?label=PyPI%20downloads)
+[![SWH](https://archive.softwareheritage.org/badge/swh:1:dir:ee0bf7bb42dc8bba132eb67175cfb384be7c9f3d/)](https://archive.softwareheritage.org/swh:1:dir:ee0bf7bb42dc8bba132eb67175cfb384be7c9f3d;origin=https://github.com/cchandre/pyhamsys;visit=swh:1:snp:37db4c3c24cb9f94211881570756d4265235afe8;anchor=swh:1:rev:bcf5c7d9174d7401ec40b6abeb6d8fe689fca26c)
 
 ## Installation 
 Installation within a Python virtual environment: 

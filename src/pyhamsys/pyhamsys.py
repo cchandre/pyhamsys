@@ -29,7 +29,7 @@ import numpy as xp
 from scipy.integrate import solve_ivp
 from scipy.integrate._ivp.ivp import METHODS as IVP_METHODS
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize
 from scipy.stats import linregress
 from sklearn.metrics import r2_score
 from scipy.fft import rfft, irfft, rfftfreq
@@ -220,6 +220,27 @@ class HamSys:
 		if display:
 			print(f"\033[90m        Results saved in {filename}\033[00m")
 
+def adjust_step(t_span:tuple, step:float, t_eval:xp.ndarray=None) -> float:
+	if not xp.isfinite(step):
+		raise ValueError("Timestep must be a finite number.")
+	if step <= 0:
+		raise ValueError("The timestep must be strictly positive.")
+
+	if t_span[0] > t_span[1]:
+		raise ValueError("Values in `t_span` are not properly sorted.")
+	if t_eval is not None:
+		if t_eval.ndim != 1:
+			raise ValueError("`t_eval` must be 1-dimensional.")
+		if xp.any(t_eval < t_span[0]) or xp.any(t_eval > t_span[1]):
+			raise ValueError("Values in `t_eval` are not within `t_span`.")
+		if xp.any(xp.diff(t_eval) <= 0):
+			raise ValueError("Values in `t_eval` are not properly sorted.")
+		n_eval = len(t_eval) - 1
+	else:
+		n_eval = int((t_span[1] - t_span[0]) / step) + 1
+	nstep = (int(xp.ceil((t_span[1] - t_span[0]) / step)) // n_eval) * n_eval + n_eval
+	return nstep, (t_span[1] - t_span[0]) / nstep
+
 def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 	x, y = xp.split(sol.y, 2)
 	nt = len(sol.t)
@@ -334,6 +355,8 @@ class SymplecticIntegrator:
     name : str
         Name of the symplectic integrator. 
 		Integration methods are listed in https://pypi.org/project/pyhamsys/ 
+	step : float
+		Step size.
     """
 	def __repr__(self) -> str:
 		return f'{self.__class__.__name__}({self.name})'
@@ -341,8 +364,9 @@ class SymplecticIntegrator:
 	def __str__(self) -> str:
 		return f'{self.name}'
 
-	def __init__(self, name:str) -> None:
+	def __init__(self, name:str, step:float) -> None:
 		self.name = name
+		self.step = step
 		if (self.name not in METHODS) and (self.name[:2] != 'Yo'):
 			raise ValueError(f"The chosen integrator must be one of {METHODS}.")
 		if self.name == 'Verlet':
@@ -397,11 +421,17 @@ class SymplecticIntegrator:
 		elif self.name != 'Simple':
 			raise NameError(f'{self.name} integrator not defined')
 		if self.name == 'Simple':
-			self.alpha_s = [1]
+			self.alpha_s = [self.step]
 			self.alpha_o = [1]
 		else:
-			self.alpha_s = xp.concatenate((alpha_s, xp.flip(alpha_s)))
+			self.alpha_s = self.step * xp.concatenate((alpha_s, xp.flip(alpha_s)))
 			self.alpha_o = xp.tile([1, 0], len(alpha_s))
+
+	def _integrate(self, t:float, y:xp.ndarray, chi:Callable, chi_star:Callable) -> Tuple[float, xp.ndarray]:
+		for h, st in zip(self.alpha_s, self.alpha_o):
+			y = chi(h, t + h, y) if st==0 else chi_star(h, t, y)
+			t += h
+		return t, y
 	
 def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray, t_eval:Union[list, xp.ndarray]=None,
 				   method:str='BM4', step:float=xp.inf, command:Callable=None) -> OdeSolution:
@@ -465,30 +495,13 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		[2] McLachlan, R.I, 2022, "Tuning symplectic integrators is easy and 
 		worthwhile", Commun. Comput. Phys. 31, 987 (2022)
 	"""
-	integrator = SymplecticIntegrator(method)
 	t0, tf = map(float, t_span)
-
-	if not xp.isfinite(step):
-		raise ValueError("Timestep must be a finite number.")
-	if step <= 0:
-		raise ValueError("The timestep must be strictly positive.")
-	
-	if t0 > tf:
-		raise ValueError("Values in `t_span` are not properly sorted.")
 	if t_eval is not None:
 		t_eval = xp.asarray(t_eval)
-		if t_eval.ndim != 1:
-			raise ValueError("`t_eval` must be 1-dimensional.")
-		if xp.any(t_eval < t0) or xp.any(t_eval > tf):
-			raise ValueError("Values in `t_eval` are not within `t_span`.")
-		if xp.any(xp.diff(t_eval) <= 0):
-			raise ValueError("Values in `t_eval` are not properly sorted.")
-		n_eval = len(t_eval) - 1
-	else:
-		n_eval = int((tf - t0) / step) + 1
-	nstep = (int(xp.ceil((tf - t0) / step)) // n_eval) * n_eval + n_eval
-	step = (tf - t0) / nstep
-	alpha_s = integrator.alpha_s * step
+
+	nstep, step = adjust_step(t_span, step, t_eval)
+
+	integrator = SymplecticIntegrator(method, step)
 
 	times = xp.linspace(t0, tf, nstep + 1)
 	if t_eval is None:
@@ -496,12 +509,6 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 	t_vec = xp.empty_like(t_eval)
 	y_vec = xp.empty(y0.shape + t_vec.shape, dtype=y0.dtype)
 	y_vec[:] = xp.nan
-
-	def _integrate(t:float, y:xp.ndarray) -> Tuple[float, xp.ndarray]:
-		for h, st in zip(alpha_s, integrator.alpha_o):
-			y = chi(h, t + h, y) if st==0 else chi_star(h, t, y)
-			t += h
-		return t, y
 	
 	count, y_ = 0, y0.copy()
 	for _, t in enumerate(times):
@@ -512,12 +519,12 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		if command is not None:
 			command(t, y_)
 		if t != times[-1]:
-			y_ = _integrate(t, y_)[1]
+			y_ = integrator._integrate(t, y_, chi, chi_star)[1]
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list, xp.ndarray]=None, 
 					  method:str='BM4', step:float=xp.inf, omega:float=10, diss:float=0, 
-					  command:Callable=None, check_energy:bool=False) -> OdeSolution:
+					  command:Callable=None, check_energy:bool=False, sym_proj:bool=False) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -602,6 +609,13 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 
 	if hs.btype not in ['pq', 'psi'] and hasattr(hs, 'coupling')==False:
 		raise ValueError("The attribute 'coupling' should be defined")
+	
+	In = xp.eye(len(y0))
+	if hs.btype == 'pq':
+		A = [[1, 0, -1, 0], [0, 1, 0, -1]]
+	else:
+		A = [[1, -1]] 
+	D_ = xp.kron(xp.asarray(A), In)
 
 	J20, J22 = xp.array([[1, 1], [1, 1]]) / 2, xp.array([[1, -1], [-1, 1]]) / 2
 	J40, J42c, J42s = xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]]) / 2, \
@@ -657,6 +671,10 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 			return xp.concatenate((y_[0], y_[1]), axis=None)
 		return xp.concatenate((y_[0], y_[1], y[-1]), axis=None)
 	
+	def _sym_proj_func(eta:xp.ndarray, y:xp.ndarray) -> xp.ndarray:
+		y_ = y + D_.T @ eta
+		return  xp.linalg.norm(D_ @ integrator._integrate(t, y_, _chi_ext, _chi_ext_star)[1] + 2 * eta)
+	
 	if not hasattr(hs, 'y_dot'):
 		raise ValueError("The attribute 'y_dot' must be provided.")
 	if check_energy_ and not hasattr(hs, 'k_dot'):
@@ -667,7 +685,44 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	y_ = xp.tile(y0, 2).astype(xp.complex128 if hs._complex else xp.float64)
 	if check_energy_:
 		y_ = xp.append(y_, 0)
+
+	t0, tf = map(float, t_span)
+	if t_eval is not None:
+		t_eval = xp.asarray(t_eval)
+
+	nstep, step = adjust_step(t_span, step, t_eval)
+
+	integrator = SymplecticIntegrator(method, step)
+
+	times = xp.linspace(t0, tf, nstep + 1)
+	if t_eval is None:
+		t_eval = times.copy()
+	t_vec = xp.empty_like(t_eval)
+	y_vec = xp.empty(y0.shape + t_vec.shape, dtype=y0.dtype)
+	y_vec[:] = xp.nan
+	
+	count, y_ = 0, y0.copy()
+	for _, t in enumerate(times):
+		if (count <= len(t_eval) - 1) and (xp.abs(times - t_eval[count]).argmin() == _):
+			t_vec[count] = t
+			y_vec[..., count] = y_
+			count += 1
+		if command is not None:
+			_command(t, y_)
+		if t != times[-1]:
+			y_ = integrator._integrate(t, y_, _chi_ext, _chi_ext_star)[1]
+			if sym_proj:
+				eta0 = xp.zeros(D_.shape[0])
+				res = minimize(_sym_proj_func, eta0, args=(y_,), method='BFGS')
+				eta_opt = res.x
+				y_ = y_ + D_.T @ eta_opt
+
+	sol = OdeSolution(t=t_vec, y=y_vec, step=step)
+
+
 	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=_command if command is not None else None)
+	
+	
 	y_ = hs._split(sol.y, hs._ysplit, check_energy=check_energy_)
 	if hs._ysplit == 2:
 		sol.y = (y_[0] + y_[1]) / 2

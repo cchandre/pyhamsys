@@ -118,7 +118,7 @@ class HamSys:
 	def _y_dot_ext(self, t, z):
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0, t_eval, extension=False, check_energy=False, display=True, solver="BM4", timestep=xp.inf, omega=10, diss=0, tol=1e-8):
+	def integrate(self, z0, t_eval, extension=False, check_energy=False, sym_proj=False, display=True, solver="BM4", timestep=xp.inf, omega=10, diss=0, tol=1e-8):
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 
@@ -140,8 +140,13 @@ class HamSys:
 			Frequency parameter for symplectic extension solvers.
 		diss : float, optional
 			Dissipation parameter for symplectic extension solvers.
+		sym_proj : bool, optional
+			It True, uses the symmetric projection to move from the extended phase
+			space to the true phase space. Solver must be in METHODS.
 		tol : float, optional
-			Absolute and relative tolerance for IVP solvers.
+			For IVP solvers: absolute and relative tolerance.
+			For symplectic split solvers : tolerance for the implict determination 
+			of the symmetric projection (see sym-proj).
 		display : bool, optional
 			Whether to print runtime information.
 
@@ -169,7 +174,7 @@ class HamSys:
 			sol = self.rectify_sol(sol, check_energy=check_energy)
 			sol.step = timestep
 		elif extension:
-			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega, diss=diss)
+			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega, diss=diss, sym_proj=sym_proj, tol=tol)
 		else:
 			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver)
 		sol.cpu_time = time.process_time() - start
@@ -525,7 +530,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 
 def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list, xp.ndarray]=None, 
 					  method:str='BM4', step:float=xp.inf, omega:float=10, diss:float=0, 
-					  command:Callable=None, check_energy:bool=False, sym_proj:bool=False) -> OdeSolution:
+					  command:Callable=None, check_energy:bool=False, sym_proj:bool=False, tol:float=1e-10) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -581,7 +586,9 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		If True, computes the total energy. Default is False. 
 	sym_proj : bool, optional
 		It True, uses the symmetric projection to move from the extended phase
-		space to the true phase space. 	
+		space to the true phase space. 
+	tol : float, optional
+		Tolerance for the implict determination of the symmetric projection. 	
 
 	Returns
 	-------
@@ -642,34 +649,34 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	def _command(t:float, y:xp.ndarray):
 		return command(t, hs._split(y, 2, check_energy=check_energy_)[0])
 
-	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		_y = hs._split(y, 2, check_energy=check_energy_)
+	def _chi_ext(h:float, t:float, y:xp.ndarray, check:bool=False) -> xp.ndarray:
+		_y = hs._split(y, 2, check_energy=check)
 		_y[1] += h * hs.y_dot(t, _y[0])
-		if check_energy_:
+		if check:
 			_y[-1] += h * hs.k_dot(t, _y[0])
 		_y[0] += h * hs.y_dot(t, _y[1])
-		if check_energy_:
+		if check:
 			_y[-1] += h * hs.k_dot(t, _y[1])
 		yr = xp.concatenate((_y[0], _y[1]), axis=None)
 		yr = _coupling(h, yr)
 		if diss != 0:
 			yr = _dissipate(h * diss, yr)
-		if not check_energy_:
+		if not check:
 			return yr
 		return xp.concatenate((yr, _y[-1]), axis=None) 
 		
-	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		yr = y if not check_energy_ else y[:-1]
+	def _chi_ext_star(h:float, t:float, y:xp.ndarray, check:bool=False) -> xp.ndarray:
+		yr = y if not check else y[:-1]
 		if diss != 0:
 			yr = _dissipate(h * diss, yr)
 		_y = xp.split(_coupling(h, yr), 2)
 		_y[0] += h * hs.y_dot(t, _y[1])
-		if check_energy_:
+		if check:
 			y[-1] += h * hs.k_dot(t, _y[1])
 		_y[1] += h * hs.y_dot(t, _y[0])
-		if check_energy_:
+		if check:
 			y[-1] += h * hs.k_dot(t, _y[0])
-		if not check_energy_:
+		if not check:
 			return xp.concatenate((_y[0], _y[1]), axis=None)
 		return xp.concatenate((_y[0], _y[1], y[-1]), axis=None)
 	
@@ -700,10 +707,10 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	if t_eval is None:
 		t_eval = times.copy()
 	t_vec = xp.empty_like(t_eval)
-	y_vec = xp.empty(y0.shape + t_vec.shape, dtype=y0.dtype)
+	y_vec = xp.empty(y_.shape + t_vec.shape, dtype=y0.dtype)
 	y_vec[:] = xp.nan
 	
-	count, y_ = 0, y0.copy()
+	count = 0
 	for _, t in enumerate(times):
 		if (count <= len(t_eval) - 1) and (xp.abs(times - t_eval[count]).argmin() == _):
 			t_vec[count] = t
@@ -714,9 +721,13 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		if t != times[-1]:
 			if sym_proj:
 				mu = xp.zeros(D_.shape[0])
-				res = least_squares(_residual, mu, args=(t, y_), method='lm')
-				y_ += D_.T @ res.x
-			y_ = integrator._integrate_onestep(t, y_, _chi_ext, _chi_ext_star)[1]
+				yi = y_ if not check_energy_ else y_[:-1]
+				res = least_squares(_residual, mu, args=(t, yi), method='lm', ftol=tol, xtol=tol, gtol=tol)
+				yi +=  D_.T @ res.x
+				y_ = yi if not check_energy_ else xp.concatenate((yi, y_[-1]), axis=None)
+			_chi_ext_ = partial(_chi_ext, check=check_energy_)	
+			_chi_ext_star_ = partial(_chi_ext_star, check=check_energy_)
+			y_ = integrator._integrate_onestep(t, y_, _chi_ext_, _chi_ext_star_)[1]
 
 	sol = OdeSolution(t=t_vec, y=y_vec, step=step)
 	

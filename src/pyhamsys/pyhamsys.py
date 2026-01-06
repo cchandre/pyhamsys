@@ -29,7 +29,7 @@ import numpy as xp
 from scipy.integrate import solve_ivp
 from scipy.integrate._ivp.ivp import METHODS as IVP_METHODS
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit, minimize
+from scipy.optimize import curve_fit, least_squares
 from scipy.stats import linregress
 from sklearn.metrics import r2_score
 from scipy.fft import rfft, irfft, rfftfreq
@@ -225,7 +225,8 @@ def adjust_step(t_span:tuple, step:float, t_eval:xp.ndarray=None) -> float:
 		raise ValueError("Timestep must be a finite number.")
 	if step <= 0:
 		raise ValueError("The timestep must be strictly positive.")
-
+	if not ((isinstance(t_span, tuple) and len(t_span) == 2 and all(isinstance(t, (int, float)) for t in t_span))):
+		raise TypeError(f"t_span must be a tuple of two floats or integers, got {t_span}")
 	if t_span[0] > t_span[1]:
 		raise ValueError("Values in `t_span` are not properly sorted.")
 	if t_eval is not None:
@@ -427,7 +428,7 @@ class SymplecticIntegrator:
 			self.alpha_s = self.step * xp.concatenate((alpha_s, xp.flip(alpha_s)))
 			self.alpha_o = xp.tile([1, 0], len(alpha_s))
 
-	def _integrate(self, t:float, y:xp.ndarray, chi:Callable, chi_star:Callable) -> Tuple[float, xp.ndarray]:
+	def _integrate_onestep(self, t:float, y:xp.ndarray, chi:Callable, chi_star:Callable) -> Tuple[float, xp.ndarray]:
 		for h, st in zip(self.alpha_s, self.alpha_o):
 			y = chi(h, t + h, y) if st==0 else chi_star(h, t, y)
 			t += h
@@ -519,7 +520,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 		if command is not None:
 			command(t, y_)
 		if t != times[-1]:
-			y_ = integrator._integrate(t, y_, chi, chi_star)[1]
+			y_ = integrator._integrate_onestep(t, y_, chi, chi_star)[1]
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
 def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list, xp.ndarray]=None, 
@@ -577,7 +578,10 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	command : function of (t, y) or None, optional
 		Function to be run at each step size. 
 	check_energy : bool, optional
-		If True, computes the total energy. Default is False.  	
+		If True, computes the total energy. Default is False. 
+	sym_proj : bool, optional
+		It True, uses the symmetric projection to move from the extended phase
+		space to the true phase space. 	
 
 	Returns
 	-------
@@ -604,18 +608,16 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		[1] Tao, M., 2016, "Explicit symplectic approximation of nonseparable 
 		Hamiltonians: Algorithm and long time performance", 
 		Phys. Rev. E 94, 043303
+		[2] Jayawardana, B., Ohsawa, T. 2023, “Semiexplicit symplectic 
+		integrators for non-separable Hamiltonian systems”, Mathematics of 
+		Computation 92.339, 251
 	"""
 	check_energy_ = check_energy * hs._time_dependent
 
-	if hs.btype not in ['pq', 'psi'] and hasattr(hs, 'coupling')==False:
+	if getattr(hs, 'btype', None) not in ['pq', 'psi'] and not hasattr(hs, 'coupling'):
 		raise ValueError("The attribute 'coupling' should be defined")
 	
-	In = xp.eye(len(y0))
-	if hs.btype == 'pq':
-		A = [[1, 0, -1, 0], [0, 1, 0, -1]]
-	else:
-		A = [[1, -1]] 
-	D_ = xp.kron(xp.asarray(A), In)
+	D_ = xp.kron(xp.asarray([[1, -1]]), xp.eye(len(y0)))
 
 	J20, J22 = xp.array([[1, 1], [1, 1]]) / 2, xp.array([[1, -1], [-1, 1]]) / 2
 	J40, J42c, J42s = xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]]) / 2, \
@@ -641,39 +643,39 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		return command(t, hs._split(y, 2, check_energy=check_energy_)[0])
 
 	def _chi_ext(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
-		y_ = hs._split(y, 2, check_energy=check_energy_)
-		y_[1] += h * hs.y_dot(t, y_[0])
+		_y = hs._split(y, 2, check_energy=check_energy_)
+		_y[1] += h * hs.y_dot(t, _y[0])
 		if check_energy_:
-			y_[-1] += h * hs.k_dot(t, y_[0])
-		y_[0] += h * hs.y_dot(t, y_[1])
+			_y[-1] += h * hs.k_dot(t, _y[0])
+		_y[0] += h * hs.y_dot(t, _y[1])
 		if check_energy_:
-			y_[-1] += h * hs.k_dot(t, y_[1])
-		yr = xp.concatenate((y_[0], y_[1]), axis=None)
+			_y[-1] += h * hs.k_dot(t, _y[1])
+		yr = xp.concatenate((_y[0], _y[1]), axis=None)
 		yr = _coupling(h, yr)
 		if diss != 0:
 			yr = _dissipate(h * diss, yr)
 		if not check_energy_:
 			return yr
-		return xp.concatenate((yr, y_[-1]), axis=None) 
+		return xp.concatenate((yr, _y[-1]), axis=None) 
 		
 	def _chi_ext_star(h:float, t:float, y:xp.ndarray) -> xp.ndarray:
 		yr = y if not check_energy_ else y[:-1]
 		if diss != 0:
 			yr = _dissipate(h * diss, yr)
-		y_ = xp.split(_coupling(h, yr), 2)
-		y_[0] += h * hs.y_dot(t, y_[1])
+		_y = xp.split(_coupling(h, yr), 2)
+		_y[0] += h * hs.y_dot(t, _y[1])
 		if check_energy_:
-			y[-1] += h * hs.k_dot(t, y_[1])
-		y_[1] += h * hs.y_dot(t, y_[0])
+			y[-1] += h * hs.k_dot(t, _y[1])
+		_y[1] += h * hs.y_dot(t, _y[0])
 		if check_energy_:
-			y[-1] += h * hs.k_dot(t, y_[0])
+			y[-1] += h * hs.k_dot(t, _y[0])
 		if not check_energy_:
-			return xp.concatenate((y_[0], y_[1]), axis=None)
-		return xp.concatenate((y_[0], y_[1], y[-1]), axis=None)
+			return xp.concatenate((_y[0], _y[1]), axis=None)
+		return xp.concatenate((_y[0], _y[1], y[-1]), axis=None)
 	
-	def _sym_proj_func(eta:xp.ndarray, y:xp.ndarray) -> xp.ndarray:
-		y_ = y + D_.T @ eta
-		return  xp.linalg.norm(D_ @ integrator._integrate(t, y_, _chi_ext, _chi_ext_star)[1] + 2 * eta)
+	def _residual(mu:xp.ndarray, t:float, y:xp.ndarray) -> xp.ndarray:
+		_y = y + D_.T @ mu
+		return  D_ @ integrator._integrate_onestep(t, _y, _chi_ext, _chi_ext_star)[1] + 2 * mu
 	
 	if not hasattr(hs, 'y_dot'):
 		raise ValueError("The attribute 'y_dot' must be provided.")
@@ -690,9 +692,9 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	if t_eval is not None:
 		t_eval = xp.asarray(t_eval)
 
-	nstep, step = adjust_step(t_span, step, t_eval)
+	nstep, step_ = adjust_step(t_span, step, t_eval)
 
-	integrator = SymplecticIntegrator(method, step)
+	integrator = SymplecticIntegrator(method, step_)
 
 	times = xp.linspace(t0, tf, nstep + 1)
 	if t_eval is None:
@@ -710,18 +712,13 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		if command is not None:
 			_command(t, y_)
 		if t != times[-1]:
-			y_ = integrator._integrate(t, y_, _chi_ext, _chi_ext_star)[1]
 			if sym_proj:
-				eta0 = xp.zeros(D_.shape[0])
-				res = minimize(_sym_proj_func, eta0, args=(y_,), method='BFGS')
-				eta_opt = res.x
-				y_ = y_ + D_.T @ eta_opt
+				mu = xp.zeros(D_.shape[0])
+				res = least_squares(_residual, mu, args=(t, y_), method='lm')
+				y_ += D_.T @ res.x
+			y_ = integrator._integrate_onestep(t, y_, _chi_ext, _chi_ext_star)[1]
 
 	sol = OdeSolution(t=t_vec, y=y_vec, step=step)
-
-
-	sol = solve_ivp_symp(_chi_ext, _chi_ext_star, t_span, y_, method=method, step=step, t_eval=t_eval, command=_command if command is not None else None)
-	
 	
 	y_ = hs._split(sol.y, hs._ysplit, check_energy=check_energy_)
 	if hs._ysplit == 2:

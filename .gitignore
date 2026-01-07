@@ -6,3 +6,4 @@
 /*.egg-info
 /pyhamsys/src/pyhamsys.egg-info/
 src/.DS_Store
+/src/pyhamsys.egg-info

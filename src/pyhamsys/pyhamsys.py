@@ -690,21 +690,21 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	
 	def _fast_mu(t: float, y: xp.ndarray) -> xp.ndarray:
 		objective = partial(_residual, t=t, y=y)
-		mu = xp.zeros_like(y0)
+		_mu = xp.zeros_like(y0)
 		tol_sq = tol ** 2
 		count = 0
 		while count < max_iter:
-			diff = -objective(mu) / 4
-			mu = mu + diff
+			diff = -objective(_mu) / 4
+			_mu += diff
 			if (diff @ diff) < tol_sq:
-				return mu
+				return _mu
 			count += 1
 		print(f"Warning: method_proj reached max_iter ({max_iter}) without converging.")
-		return mu
+		return _mu
 	
 	def _broyden_mu(t: float, y: xp.ndarray) -> xp.ndarray:
 		objective = partial(_residual, t=t, y=y)
-		res = root(objective, xp.zeros_like(y0), method='broyden1', options={'fatol': tol, 'maxiter': max_iter})
+		res = root(objective, xp.zeros_like(y0), method='broyden1', options={'fatol': tol, 'maxiter': max_iter, 'line_search': 'armijo', 'alpha': -0.25})
 		if res.success:
 			return res.x
 		else:
@@ -749,10 +749,10 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 			if method_proj in ['fast', 'broyden']:
 				yi = y_ if not check_energy_ else y_[:-1]
 				if method_proj == 'fast':
-					mu = _fast_mu(t, yi)
+					mu_ = _fast_mu(t, yi)
 				else:
-					mu = _broyden_mu(t, yi)
-				yi = yi +  xp.concatenate((mu, -mu), axis=None)
+					mu_ = _broyden_mu(t, yi)
+				yi = yi +  xp.concatenate((mu_, -mu_), axis=None)
 				y_ = yi if not check_energy_ else xp.concatenate((yi, y_[-1]), axis=None)
 			_chi_ext_ = partial(_chi_ext, check=check_energy_)	
 			_chi_ext_star_ = partial(_chi_ext_star, check=check_energy_)

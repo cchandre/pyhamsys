@@ -29,7 +29,7 @@ import numpy as xp
 from scipy.integrate import solve_ivp
 from scipy.integrate._ivp.ivp import METHODS as IVP_METHODS
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit, least_squares
+from scipy.optimize import curve_fit, root
 from scipy.stats import linregress
 from sklearn.metrics import r2_score
 from scipy.fft import rfft, irfft, rfftfreq
@@ -118,7 +118,7 @@ class HamSys:
 	def _y_dot_ext(self, t, z):
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0, t_eval, extension=False, check_energy=False, sym_proj=False, display=True, solver="BM4", timestep=xp.inf, omega=10, diss=0, tol=1e-8):
+	def integrate(self, z0, t_eval, extension=False, check_energy=False, method_proj='midpoint', display=True, solver="BM4", timestep=xp.inf, omega=10, diss=0, tol=1e-8, max_iter=100):
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 
@@ -174,7 +174,7 @@ class HamSys:
 			sol = self.rectify_sol(sol, check_energy=check_energy)
 			sol.step = timestep
 		elif extension:
-			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega, diss=diss, sym_proj=sym_proj, tol=tol)
+			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega, diss=diss, method_proj=method_proj, tol=tol, max_iter=max_iter)
 		else:
 			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver)
 		sol.cpu_time = time.process_time() - start
@@ -530,7 +530,7 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 
 def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list, xp.ndarray]=None, 
 					  method:str='BM4', step:float=xp.inf, omega:float=10, diss:float=0, 
-					  command:Callable=None, check_energy:bool=False, sym_proj:bool=False, tol:float=1e-10) -> OdeSolution:
+					  command:Callable=None, check_energy:bool=False, method_proj:str='midpoint', max_iter:int=100, tol:float=1e-10) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -684,6 +684,28 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		_y = y + D_.T @ mu
 		return  D_ @ integrator._integrate_onestep(t, _y, _chi_ext, _chi_ext_star)[1] + 2 * mu
 	
+	def _fast_mu(mu: xp.ndarray, t: float, y: xp.ndarray) -> xp.ndarray:
+		mu_prev = mu
+		mu_next = mu_prev - _residual(mu_prev, t, y) / 4
+		count = 0
+		while xp.linalg.norm(mu_next - mu_prev) >= tol:
+			mu_prev = mu_next
+			mu_next = mu_prev - _residual(mu_prev, t, y) / 4
+			count += 1
+			if count >= max_iter:
+				print(f"Warning: _fast_mu reached max_iter ({max_iter}) without converging.")
+				break
+		return mu_next
+	
+	def _broyden_mu(mu: xp.ndarray, t: float, y: xp.ndarray) -> xp.ndarray:
+		objective = partial(_residual, t=t, y=y)
+		res = root(objective, mu, method='broyden1', options={'fatol': tol, 'maxiter': max_iter})
+		if res.success:
+			return res.x
+		else:
+			print(f"Warning: convergence failed: {res.message}")
+			return res.x 
+	
 	if not hasattr(hs, 'y_dot'):
 		raise ValueError("The attribute 'y_dot' must be provided.")
 	if check_energy_ and not hasattr(hs, 'k_dot'):
@@ -719,11 +741,14 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		if command is not None:
 			_command(t, y_)
 		if t != times[-1]:
-			if sym_proj:
+			if method_proj in ['fast', 'broyden']:
 				mu = xp.zeros(D_.shape[0])
 				yi = y_ if not check_energy_ else y_[:-1]
-				res = least_squares(_residual, mu, args=(t, yi), method='lm', ftol=tol, xtol=tol, gtol=tol)
-				yi +=  D_.T @ res.x
+				if method_proj == 'fast':
+					mu = _fast_mu(mu, t, yi)
+				else:
+					mu = _broyden_mu(mu, t, yi)
+				yi +=  D_.T @ mu
 				y_ = yi if not check_energy_ else xp.concatenate((yi, y_[-1]), axis=None)
 			_chi_ext_ = partial(_chi_ext, check=check_energy_)	
 			_chi_ext_star_ = partial(_chi_ext_star, check=check_energy_)

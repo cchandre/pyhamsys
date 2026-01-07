@@ -624,7 +624,10 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	if getattr(hs, 'btype', None) not in ['pq', 'psi'] and not hasattr(hs, 'coupling'):
 		raise ValueError("The attribute 'coupling' should be defined")
 	
-	D_ = xp.kron(xp.asarray([[1, -1]]), xp.eye(len(y0)))
+	P_METHODS = ['midpoint', 'fast', 'broyden']
+	
+	if method_proj not in P_METHODS:
+		raise ValueError(f"The method for projection should be in {P.METHODS}")
 
 	J20, J22 = xp.array([[1, 1], [1, 1]]) / 2, xp.array([[1, -1], [-1, 1]]) / 2
 	J40, J42c, J42s = xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]]) / 2, \
@@ -681,29 +684,31 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		return xp.concatenate((_y[0], _y[1], y[-1]), axis=None)
 	
 	def _residual(mu:xp.ndarray, t:float, y:xp.ndarray) -> xp.ndarray:
-		_y = y + D_.T @ mu
-		return  D_ @ integrator._integrate_onestep(t, _y, _chi_ext, _chi_ext_star)[1] + 2 * mu
+		mu_ext = xp.concatenate((mu, -mu), axis=None)
+		y1, y2 = xp.split(integrator._integrate_onestep(t, y + mu_ext, _chi_ext, _chi_ext_star)[1], 2)
+		return  y1 - y2 + 2 * mu
 	
-	def _fast_mu(mu: xp.ndarray, t: float, y: xp.ndarray) -> xp.ndarray:
-		mu_prev = mu
-		mu_next = mu_prev - _residual(mu_prev, t, y) / 4
-		count = 0
-		while xp.linalg.norm(mu_next - mu_prev) >= tol:
-			mu_prev = mu_next
-			mu_next = mu_prev - _residual(mu_prev, t, y) / 4
-			count += 1
-			if count >= max_iter:
-				print(f"Warning: _fast_mu reached max_iter ({max_iter}) without converging.")
-				break
-		return mu_next
-	
-	def _broyden_mu(mu: xp.ndarray, t: float, y: xp.ndarray) -> xp.ndarray:
+	def _fast_mu(t: float, y: xp.ndarray) -> xp.ndarray:
 		objective = partial(_residual, t=t, y=y)
-		res = root(objective, mu, method='broyden1', options={'fatol': tol, 'maxiter': max_iter})
+		mu = xp.zeros_like(y0)
+		tol_sq = tol ** 2
+		count = 0
+		while count < max_iter:
+			diff = -objective(mu) / 4
+			mu = mu + diff
+			if (diff @ diff) < tol_sq:
+				return mu
+			count += 1
+		print(f"Warning: method_proj reached max_iter ({max_iter}) without converging.")
+		return mu
+	
+	def _broyden_mu(t: float, y: xp.ndarray) -> xp.ndarray:
+		objective = partial(_residual, t=t, y=y)
+		res = root(objective, xp.zeros_like(y0), method='broyden1', options={'fatol': tol, 'maxiter': max_iter})
 		if res.success:
 			return res.x
 		else:
-			print(f"Warning: convergence failed: {res.message}")
+			print(f"Warning: convergence failed in method_proj: {res.message}")
 			return res.x 
 	
 	if not hasattr(hs, 'y_dot'):
@@ -742,13 +747,12 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 			_command(t, y_)
 		if t != times[-1]:
 			if method_proj in ['fast', 'broyden']:
-				mu = xp.zeros(D_.shape[0])
 				yi = y_ if not check_energy_ else y_[:-1]
 				if method_proj == 'fast':
-					mu = _fast_mu(mu, t, yi)
+					mu = _fast_mu(t, yi)
 				else:
-					mu = _broyden_mu(mu, t, yi)
-				yi +=  D_.T @ mu
+					mu = _broyden_mu(t, yi)
+				yi = yi +  xp.concatenate((mu, -mu), axis=None)
 				y_ = yi if not check_energy_ else xp.concatenate((yi, y_[-1]), axis=None)
 			_chi_ext_ = partial(_chi_ext, check=check_energy_)	
 			_chi_ext_star_ = partial(_chi_ext_star, check=check_energy_)

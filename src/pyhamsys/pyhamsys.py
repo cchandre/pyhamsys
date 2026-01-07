@@ -704,7 +704,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	
 	def _broyden_mu(t: float, y: xp.ndarray) -> xp.ndarray:
 		objective = partial(_residual, t=t, y=y)
-		res = root(objective, xp.zeros_like(y0), method='broyden1', options={'fatol': tol, 'maxiter': max_iter, 'line_search': 'armijo', 'alpha': -0.25})
+		res = root(objective, xp.zeros_like(y0), method='broyden1', options={'fatol': tol, 'maxiter': max_iter, 'line_search': 'armijo', 'jac_options': {'alpha': -0.25}})
 		if res.success:
 			return res.x
 		else:

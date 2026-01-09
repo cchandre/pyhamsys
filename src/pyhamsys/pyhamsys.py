@@ -708,7 +708,6 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 			if (diff @ diff) < tol:
 				return _mu
 			count += 1
-		print(f"Warning: initial guess (_fast_mu with {max_iter} iterations) did not converge")
 		return _mu
 	
 	def _refine_mu(t: float, y: xp.ndarray) -> xp.ndarray:
@@ -716,10 +715,9 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		mu = _fast_mu(objective, tol)
 		res = root(objective, mu, method='broyden1', options={'fatol': tol, 'xatol': tol, 'maxiter': max_iter, 'jac_options': {'alpha': -0.25}})
 		if res.success:
-			return res.x
+			return res.x, True
 		else:
-			print(f"Warning: convergence for symmetric projection failed: {res.message}")
-			return mu 
+			return xp.zeros_like(y), False
 	
 	if not hasattr(hs, 'y_dot'):
 		raise ValueError("The attribute 'y_dot' must be provided.")
@@ -747,6 +745,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	y_vec = xp.empty(y_.shape + t_vec.shape, dtype=y0.dtype)
 	y_vec[:] = xp.nan
 	
+	_projection = 'none' if projection is None else projection
 	count = 0
 	for _, t in enumerate(times):
 		if (count <= len(t_eval) - 1) and (xp.abs(times - t_eval[count]).argmin() == _):
@@ -756,17 +755,20 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		if command is not None:
 			_command(t, y_)
 		if t != times[-1]:
-			if projection == 'symmetric':
+			if _projection == 'symmetric':
 				yi = y_ if not check_energy_ else y_[:-1]
-				mu_ = _refine_mu(t, yi)
-				yi = yi +  xp.concatenate((mu_, -mu_), axis=None)
-				y_ = yi if not check_energy_ else xp.append(yi, y_[-1])
+				mu_ = _refine_mu(t, yi)[0]
+				if _refine_mu(t, yi)[1]:
+					yi = yi +  xp.concatenate((mu_, -mu_), axis=None)
+					y_ = yi if not check_energy_ else xp.append(yi, y_[-1])
+				else:
+					_projection = 'none'
 			_chi_ext_ = partial(_chi_ext, check=check_energy_)	
 			_chi_ext_star_ = partial(_chi_ext_star, check=check_energy_)
 			y_ = integrator._integrate_onestep(t, y_, _chi_ext_, _chi_ext_star_)[1]
 			if projection == 'midpoint':
 				y_ = _midpoint(y_)
-			if projection == 'symmetric':
+			if _projection == 'symmetric':
 				yi = y_ if not check_energy_ else y_[:-1]
 				yi = yi +  xp.concatenate((mu_, -mu_), axis=None)
 				y_ = yi if not check_energy_ else xp.append(yi, y_[-1])
@@ -779,6 +781,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	else:
 		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
 		sol.dist_copy = max(xp.amax(xp.abs(y_[0] - y_[2])), xp.amax(xp.abs(y_[1] - y_[3])))
+	sol.projection = _projection
 	if check_energy_:
 		sol.k = y_[-1] / 2
 	if check_energy:

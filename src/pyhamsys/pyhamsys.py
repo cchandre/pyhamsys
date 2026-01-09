@@ -757,8 +757,8 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		if t != times[-1]:
 			if _projection == 'symmetric':
 				yi = y_ if not check_energy_ else y_[:-1]
-				mu_ = _refine_mu(t, yi)[0]
-				if _refine_mu(t, yi)[1]:
+				mu_, _success = _refine_mu(t, yi)
+				if _success:
 					yi = yi +  xp.concatenate((mu_, -mu_), axis=None)
 					y_ = yi if not check_energy_ else xp.append(yi, y_[-1])
 				else:

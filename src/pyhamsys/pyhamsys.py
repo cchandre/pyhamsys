@@ -717,7 +717,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		if res.success:
 			return res.x, True
 		else:
-			return xp.zeros_like(y), False
+			return xp.zeros_like(y0), False
 	
 	if not hasattr(hs, 'y_dot'):
 		raise ValueError("The attribute 'y_dot' must be provided.")

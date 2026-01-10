@@ -187,7 +187,7 @@ class HamSys:
 			if hasattr(sol, 'err'):
 				print(f'\033[90m           with error in energy = {sol.err:.2e} \033[00m')
 			if hasattr(sol, 'proj_dist'):
-				print(f'\033[90m           with distance in copies = {sol.proj_dist:.2e}\033[00m')
+				print(f'\033[90m           with projection ({sol.projection}) distance = {sol.proj_dist:.2e}\033[00m')
 		return sol
 	
 	def compute_lyapunov(self, tf: float, z0: xp.ndarray, reortho_dt: float, tol: float=1e-8, solver: str='RK45', display: bool=True) -> xp.ndarray:
@@ -516,21 +516,21 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 	times = xp.linspace(t0, tf, nstep + 1)
 	if t_eval is None:
 		t_eval = times.copy()
-	t_vec = xp.empty_like(t_eval)
-	y_vec = xp.empty(y0.shape + t_vec.shape, dtype=y0.dtype)
-	y_vec[:] = xp.nan
+	t_out = xp.empty_like(t_eval)
+	y_out = xp.empty(y0.shape + t_out.shape, dtype=y0.dtype)
+	y_out[:] = xp.nan
 	
 	count, y_ = 0, y0.copy()
 	for _, t in enumerate(times):
 		if (count <= len(t_eval) - 1) and (xp.abs(times - t_eval[count]).argmin() == _):
-			t_vec[count] = t
-			y_vec[..., count] = y_
+			t_out[count] = t
+			y_out[..., count] = y_
 			count += 1
 		if command is not None:
 			command(t, y_)
 		if t != times[-1]:
 			y_ = integrator._integrate_onestep(t, y_, chi, chi_star)[1]
-	return OdeSolution(t=t_vec, y=y_vec, step=step)
+	return OdeSolution(t=t_out, y=y_out, step=step)
 
 def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[list, xp.ndarray]=None, 
 					  method: str='BM4', step: float=xp.inf, omega: float=10, diss: float=None, 
@@ -627,6 +627,7 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 		Computation 92.339, 251
 	"""
 	check_energy_ = check_energy * hs._time_dependent
+	end_idx = -1 if check_energy_ else None
 
 	if getattr(hs, 'btype', None) not in ['pq', 'psi'] and not hasattr(hs, 'coupling'):
 		raise ValueError("The attribute 'coupling' should be defined")
@@ -653,8 +654,7 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	
 	def _midpoint(y: xp.ndarray) -> xp.ndarray:
 		_y = hs._split(y, 2, check_energy=check_energy_)
-		_yi = (_y[0] + _y[1]) / 2
-		_yi = xp.tile(_yi, 2)
+		_yi = xp.tile((_y[0] + _y[1]) / 2, 2)
 		return _yi if not check_energy_ else xp.append(_yi, _y[-1]), xp.linalg.norm(_y[0] - _y[1])
 	
 	def _distance(y: xp.ndarray) -> xp.ndarray:
@@ -700,11 +700,11 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 		y1, y2 = xp.split(integrator._integrate_onestep(t, y + mu_ext, _chi_ext, _chi_ext_star)[1], 2)
 		return  y1 - y2 + 2 * mu
 	
-	def _fast_mu(func, tol: float) -> xp.ndarray:
+	def _fast_mu(func, tol: float, alpha:float) -> xp.ndarray:
 		_mu = xp.zeros_like(y0)
 		count = 0
 		while count < max_iter:
-			diff = -0.25 * func(_mu)
+			diff = alpha * func(_mu)
 			_mu += diff
 			if (diff @ diff) < tol:
 				return _mu
@@ -713,8 +713,9 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	
 	def _refine_mu(t: float, y: xp.ndarray) -> xp.ndarray:
 		objective = partial(_residual, t=t, y=y)
-		mu = _fast_mu(objective, tol)
-		res = root(objective, mu, method='broyden1', options={'fatol': tol, 'xatol': tol, 'maxiter': max_iter, 'jac_options': {'alpha': -0.25}})
+		alpha = -0.25
+		mu = _fast_mu(objective, tol, alpha)
+		res = root(objective, mu, method='broyden1', options={'fatol': tol, 'xatol': tol, 'maxiter': max_iter, 'jac_options': {'alpha': alpha}})
 		if res.success:
 			return res.x, True
 		else:
@@ -742,49 +743,41 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	times = xp.linspace(t0, tf, nstep + 1)
 	if t_eval is None:
 		t_eval = times.copy()
-	t_vec = xp.empty_like(t_eval)
-	y_vec = xp.empty(y_.shape + t_vec.shape, dtype=y0.dtype)
-	y_vec[:] = xp.nan
+	t_out = xp.empty_like(t_eval)
+	y_out = xp.empty(y_.shape + t_out.shape, dtype=y0.dtype)
+	y_out[:] = xp.nan
 	
 	_projection = 'none' if projection is None else projection
 	proj_dist, count = 0., 0
 	for _, t in enumerate(times):
 		if (count <= len(t_eval) - 1) and (xp.abs(times - t_eval[count]).argmin() == _):
-			t_vec[count] = t
-			y_vec[..., count] = y_
+			t_out[count] = t
+			y_out[..., count] = y_
 			count += 1
 		if command is not None:
 			_command(t, y_)
 		if t != times[-1]:
 			if _projection == 'symmetric':
-				yi = y_ if not check_energy_ else y_[:-1]
-				mu_, _success = _refine_mu(t, yi)
+				mu_, _success = _refine_mu(t, y_[:end_idx])
 				if _success:
-					yi = yi +  xp.concatenate((mu_, -mu_), axis=None)
-					y_ = yi if not check_energy_ else xp.append(yi, y_[-1])
+					y_[:end_idx] += xp.concatenate((mu_, -mu_), axis=None)
 				else:
-					_projection = 'none'
+					_projection = 'midpoint'
 			_chi_ext_ = partial(_chi_ext, check=check_energy_)	
 			_chi_ext_star_ = partial(_chi_ext_star, check=check_energy_)
 			y_ = integrator._integrate_onestep(t, y_, _chi_ext_, _chi_ext_star_)[1]
-			if projection == 'midpoint':
+			if _projection == 'midpoint':
 				y_, _dist = _midpoint(y_)
 			elif _projection == 'symmetric':
-				yi = y_ if not check_energy_ else y_[:-1]
-				yi = yi +  xp.concatenate((mu_, -mu_), axis=None)
-				y_ = yi if not check_energy_ else xp.append(yi, y_[-1])
+				y_[:end_idx] += xp.concatenate((mu_, -mu_), axis=None)
 				_dist = xp.linalg.norm(mu_)
 			else:
 				_dist = _distance(y_)
-			proj_dist = _dist if _dist < proj_dist else proj_dist
-	sol = OdeSolution(t=t_vec, y=y_vec, step=step)
-	y_ = hs._split(sol.y, 2, check_energy=check_energy_)
-	sol.y = (y_[0] + y_[1]) / 2
+			proj_dist = _dist if _dist > proj_dist else proj_dist
+	y_ = hs._split(y_out, 2, check_energy=check_energy_)
+	sol = OdeSolution(t=t_out, y=(y_[0] + y_[1]) / 2, step=step_, projection=_projection, proj_dist=proj_dist)
 	if check_energy_:
 		sol.k = y_[-1] / 2
 	if check_energy:
 		sol.err = hs.compute_energy(sol)
-	sol.projection = _projection
-	sol.proj_dist = proj_dist
 	return sol
-

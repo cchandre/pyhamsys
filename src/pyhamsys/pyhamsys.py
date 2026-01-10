@@ -50,8 +50,8 @@ class OdeSolution(OptimizeResult):
     pass
 
 class HamSys:
-	def __init__(self, ndof:float=1, btype:str='pq', y_dot:Callable=None,\
-			   k_dot:Callable=None, hamiltonian:Callable=None) -> None:
+	def __init__(self, ndof: float=1, btype: str='pq', y_dot: Callable=None,\
+			   k_dot: Callable=None, hamiltonian: Callable=None) -> None:
 		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
 			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
 		self._ndof = int(ndof)
@@ -66,17 +66,17 @@ class HamSys:
 		if hamiltonian is not None:
 			self.hamiltonian = hamiltonian
 
-	def _split(self, y:xp.ndarray, n:int, check_energy:bool=False):
+	def _split(self, y: xp.ndarray, n: int, check_energy: bool=False):
 		ys = xp.split(y[:-1] if check_energy else y, n)
 		if check_energy:
 			ys.append(y[-1])
 		return ys
 	
-	def _create_function(self, t:float, y:xp.ndarray, eqn:Callable) -> xp.ndarray:
+	def _create_function(self, t: float, y: xp.ndarray, eqn: Callable) -> xp.ndarray:
 		q, p = xp.split(y, 2)
 		return xp.asarray(eqn(q, p, t)).flatten()
 	
-	def rectify_sol(self, sol:OdeSolution, check_energy:bool=False) -> OdeSolution:
+	def rectify_sol(self, sol: OdeSolution, check_energy: bool=False) -> OdeSolution:
 		if not check_energy:
 			return sol
 		if self._time_dependent:
@@ -86,7 +86,7 @@ class HamSys:
 		sol.err = self.compute_energy(sol)
 		return sol
 	
-	def compute_vector_field(self, hamiltonian:Callable, output:bool=False, check_energy:bool=False) -> None:
+	def compute_vector_field(self, hamiltonian: Callable, output: bool=False, check_energy: bool=False) -> None:
 		if self.btype != 'pq':
 			raise ValueError("Computation of vector fields not implemented for these variables")
 		q = sp.symbols('q0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('q')
@@ -107,7 +107,7 @@ class HamSys:
 			eqn_t = sp.lambdify([q, p, t], eqn_t)
 			self.k_dot = partial(self._create_function, eqn=eqn_t)
 
-	def compute_energy(self, sol:OdeSolution, maxerror:bool=True) -> xp.ndarray:
+	def compute_energy(self, sol: OdeSolution, maxerror: bool=True) -> xp.ndarray:
 		val_h = xp.empty_like(sol.t)
 		for _, t in enumerate(sol.t):
 			val_h[_] = self.hamiltonian(t, sol.y[:, _])
@@ -115,10 +115,10 @@ class HamSys:
 			val_h += sol.k
 		return xp.max(xp.abs(val_h - val_h[0])) if maxerror else val_h
 	
-	def _y_dot_ext(self, t, z):
+	def _y_dot_ext(self, t: float, z: xp.ndarray) -> xp.ndarray:
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0, t_eval, extension=False, check_energy=False, projection=None, display=True, solver="BM4", timestep=xp.inf, omega=10, diss=0, tol=1e-8, max_iter=100):
+	def integrate(self, z0: xp.ndarray, t_eval, extension: bool=False, check_energy: bool=False, projection: str=None, display: bool=True, solver: str="BM4", timestep: float=xp.inf, omega: float=10, diss: float=None, tol: float=1e-8, max_iter: int=100) -> OdeSolution:
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 
@@ -186,11 +186,11 @@ class HamSys:
 			print(f'\033[90m        Computation finished in {int(sol.cpu_time)} seconds \033[00m')
 			if hasattr(sol, 'err'):
 				print(f'\033[90m           with error in energy = {sol.err:.2e} \033[00m')
-			if hasattr(sol, 'dist_copy'):
-				print(f'\033[90m           with distance in copies = {sol.dist_copy:.2e}\033[00m')
+			if hasattr(sol, 'proj_dist'):
+				print(f'\033[90m           with distance in copies = {sol.proj_dist:.2e}\033[00m')
 		return sol
 	
-	def compute_lyapunov(self, tf, z0, reortho_dt, tol=1e-8, solver='RK45', display=True):
+	def compute_lyapunov(self, tf: float, z0: xp.ndarray, reortho_dt: float, tol: float=1e-8, solver: str='RK45', display: bool=True) -> xp.ndarray:
 		if solver not in IVP_METHODS:
 			raise ValueError(f"Solver {solver} is not recognized for Lyapunov exponent computation."
 							 f"Available solvers are {IVP_METHODS}.")
@@ -213,7 +213,7 @@ class HamSys:
 			print(f'\033[90m        Computation finished in {int(time.time() - start)} seconds \033[00m')
 		return xp.sort(lyap_sum / tf)
 	
-	def save_data(self, *data, params=None, filename='', author='', display=True):
+	def save_data(self, *data, params: dict=None, filename: str='', author: str='', display: bool=True) -> None:
 		params = dict(params) if params else {}
 		for i, d in enumerate(data):
 			params[f'data{i}'] = d
@@ -229,7 +229,7 @@ class HamSys:
 		if display:
 			print(f"\033[90m        Results saved in {filename}\033[00m")
 
-def adjust_step(t_span:tuple, step:float, t_eval:xp.ndarray=None) -> float:
+def adjust_step(t_span: tuple, step: float, t_eval: xp.ndarray=None) -> float:
 	if not xp.isfinite(step):
 		raise ValueError("Timestep must be a finite number.")
 	if step <= 0:
@@ -251,7 +251,7 @@ def adjust_step(t_span:tuple, step:float, t_eval:xp.ndarray=None) -> float:
 	nstep = (int(xp.ceil((t_span[1] - t_span[0]) / step)) // n_eval) * n_eval + n_eval
 	return nstep, (t_span[1] - t_span[0]) / nstep
 
-def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
+def compute_msd(sol: OdeSolution, plot_data: bool=False, output_r2: bool=False):
 	x, y = xp.split(sol.y, 2)
 	nt = len(sol.t)
 	r2 = xp.zeros(nt)
@@ -275,7 +275,7 @@ def compute_msd(sol:OdeSolution, plot_data:bool=False, output_r2:bool=False):
 		return sol.t, r2, diff_data, interp_data
 	return diff_data, interp_data
 
-def antiderivative(vec:xp.ndarray, N:int=2**10, axis=-1) -> xp.ndarray:
+def antiderivative(vec: xp.ndarray, N: int=2**10, axis=-1) -> xp.ndarray:
     nu = rfftfreq(N, d=1/N) 
     div = xp.zeros_like(nu, dtype=complex)
     div[1:] = 1 / (1j * nu[1:]) 
@@ -284,19 +284,19 @@ def antiderivative(vec:xp.ndarray, N:int=2**10, axis=-1) -> xp.ndarray:
     div = div.reshape(shape)
     return irfft(rfft(vec, axis=axis) * div, axis=axis)
 
-def padwrap(vec:xp.ndarray) -> xp.ndarray:
+def padwrap(vec: xp.ndarray) -> xp.ndarray:
 	return xp.concatenate((vec, vec[..., 0][..., xp.newaxis]), axis=-1)
 
-def make_array(data, shape, squeeze=True):
+def make_array(data, shape, squeeze=True) -> xp.ndarray:
     arr = xp.asarray(data).reshape(*shape)
     return xp.squeeze(arr) if squeeze else arr
 
-def get_last_elements(a:xp.ndarray, axis:int=0) -> None:
+def get_last_elements(a: xp.ndarray, axis: int=0) -> None:
     shape = list(a.shape)
     shape[axis] = 1
     return xp.take(a, -1, axis=axis).reshape(tuple(shape))
 
-def cart2sph(state:xp.ndarray, dim:int=2) -> xp.ndarray:
+def cart2sph(state: xp.ndarray, dim: int=2) -> xp.ndarray:
     if dim == 2:
         x, y, px, py = state
         r, phi = xp.hypot(x, y), xp.arctan2(y, x)
@@ -312,7 +312,7 @@ def cart2sph(state:xp.ndarray, dim:int=2) -> xp.ndarray:
         p_phi = x * py - y * px
         return xp.concatenate(([r], [theta], [phi], [p_r], [p_theta], [p_phi]), axis=0)
 
-def sph2cart(state:xp.ndarray, dim:int=2) -> xp.ndarray:
+def sph2cart(state: xp.ndarray, dim: int=2) -> xp.ndarray:
     if dim == 2:
         r, phi, p_r, p_phi = state
         x, y = r * xp.cos(phi), r * xp.sin(phi)
@@ -327,7 +327,7 @@ def sph2cart(state:xp.ndarray, dim:int=2) -> xp.ndarray:
         pz = p_r * xp.cos(theta) - p_theta * xp.sin(theta) / r
         return xp.concatenate(([x], [y], [z], [px], [py], [pz]), axis=0)
     
-def rotating(state:xp.ndarray, angle:float, type:str='cartesian', dim:int=2) -> xp.ndarray:
+def rotating(state: xp.ndarray, angle: float, type: str='cartesian', dim: int=2) -> xp.ndarray:
     state_ = state.copy()
     if type == 'spherical':
         state_  = sph2cart(state_)
@@ -345,7 +345,7 @@ def rotating(state:xp.ndarray, angle:float, type:str='cartesian', dim:int=2) -> 
         state_ = xp.concatenate(([xr], [yr], [z], [pxr], [pyr], [pz]), axis=0)
     return cart2sph(state_) if type == 'spherical' else state_
 
-def field_envelope(t:float, te_au:xp.ndarray, envelope:str='sinus') -> float:
+def field_envelope(t: float, te_au: xp.ndarray, envelope: str='sinus') -> float:
     te = xp.cumsum(te_au)
     if envelope == 'sinus':
         return xp.where(t<=0, 0, xp.where(t<=te[0], xp.sin(xp.pi * t / (2 * te[0]))**2, xp.where(t<=te[1], 1, xp.where(t<=te[2], xp.sin(xp.pi * (te[2] - t) / (2 * te_au[2]))**2, 0))))
@@ -374,7 +374,7 @@ class SymplecticIntegrator:
 	def __str__(self) -> str:
 		return f'{self.name}'
 
-	def __init__(self, name:str, step:float) -> None:
+	def __init__(self, name: str, step: float) -> None:
 		self.name = name
 		self.step = step
 		if (self.name not in METHODS) and (self.name[:2] != 'Yo'):
@@ -437,14 +437,14 @@ class SymplecticIntegrator:
 			self.alpha_s = self.step * xp.concatenate((alpha_s, xp.flip(alpha_s)))
 			self.alpha_o = xp.tile([1, 0], len(alpha_s))
 
-	def _integrate_onestep(self, t:float, y:xp.ndarray, chi:Callable, chi_star:Callable) -> Tuple[float, xp.ndarray]:
+	def _integrate_onestep(self, t: float, y: xp.ndarray, chi: Callable, chi_star: Callable) -> Tuple[float, xp.ndarray]:
 		for h, st in zip(self.alpha_s, self.alpha_o):
 			y = chi(h, t + h, y) if st==0 else chi_star(h, t, y)
 			t += h
 		return t, y
 	
-def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray, t_eval:Union[list, xp.ndarray]=None,
-				   method:str='BM4', step:float=xp.inf, command:Callable=None) -> OdeSolution:
+def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndarray, t_eval: Union[list, xp.ndarray]=None,
+				   method: str='BM4', step: float=xp.inf, command: Callable=None) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic splitting scheme (see [1]).
@@ -532,9 +532,9 @@ def solve_ivp_symp(chi:Callable, chi_star:Callable, t_span:tuple, y0:xp.ndarray,
 			y_ = integrator._integrate_onestep(t, y_, chi, chi_star)[1]
 	return OdeSolution(t=t_vec, y=y_vec, step=step)
 
-def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list, xp.ndarray]=None, 
-					  method:str='BM4', step:float=xp.inf, omega:float=10, diss:float=0, 
-					  command:Callable=None, check_energy:bool=False, projection:str=None, max_iter:int=100, tol:float=1e-10) -> OdeSolution:
+def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[list, xp.ndarray]=None, 
+					  method: str='BM4', step: float=xp.inf, omega: float=10, diss: float=None, 
+					  command: Callable=None, check_energy: bool=False, projection: str=None, max_iter: int=100, tol: float=1e-10) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -608,7 +608,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	k : ndarray, shape (n_points,)
 		Values of k(t) at `t` if `check_energy` is True and if the Hamiltonian
 		system has an explicit time dependence.  
-	dist_copy : float
+	proj_dist : float
 		Maximum distance between the two copies of the state in the extended 
 		phase space.
 	err : float
@@ -636,7 +636,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 		xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]]) / 2, \
 		xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]]) / 2
 	
-	def _coupling(h:float, y:xp.ndarray) -> xp.ndarray:
+	def _coupling(h: float, y: xp.ndarray) -> xp.ndarray:
 		if hasattr(hs, 'coupling'):
 			return hs.coupling(h, y, omega).flatten()
 		if hs.btype == 'psi':
@@ -645,25 +645,26 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 			J = J40 + xp.cos(2 * omega * h) * J42c + xp.sin(2 * omega * h) * J42s
 		return xp.einsum('ij,j...->i...', J, xp.split(y, hs._ysplit)).flatten()
 	
-	def _dissipate(h:float, y:xp.ndarray) -> xp.ndarray:
+	def _dissipate(h: float, y: xp.ndarray) -> xp.ndarray:
 		u = xp.exp(-h)
 		up, um = (1 + u) / 2, (1 - u) / 2
 		z1, z2 = xp.split(y, 2)
 		return xp.concatenate((up * z1 + um * z2, um * z1 + up * z2), axis=None)
 	
-	def _midpoint(y:xp.ndarray) -> xp.ndarray:
-		_y = hs._split(y, hs._ysplit, check_energy=check_energy_)
-		if hs._ysplit == 2:
-			_yi = (_y[0] + _y[1]) / 2
-		else:
-			_yi = xp.concatenate(((_y[0] + _y[2]) / 2, (_y[1] + _y[3]) / 2), axis=None)
+	def _midpoint(y: xp.ndarray) -> xp.ndarray:
+		_y = hs._split(y, 2, check_energy=check_energy_)
+		_yi = (_y[0] + _y[1]) / 2
 		_yi = xp.tile(_yi, 2)
-		return _yi if not check_energy_ else xp.append(_yi, _y[-1])
+		return _yi if not check_energy_ else xp.append(_yi, _y[-1]), xp.linalg.norm(_y[0] - _y[1])
 	
-	def _command(t:float, y:xp.ndarray):
+	def _distance(y: xp.ndarray) -> xp.ndarray:
+		_y = hs._split(y, 2, check_energy=check_energy_)
+		return xp.linalg.norm(_y[0] - _y[1])
+	
+	def _command(t: float, y: xp.ndarray):
 		return command(t, hs._split(y, 2, check_energy=check_energy_)[0])
 
-	def _chi_ext(h:float, t:float, y:xp.ndarray, check:bool=False) -> xp.ndarray:
+	def _chi_ext(h: float, t: float, y: xp.ndarray, check: bool=False) -> xp.ndarray:
 		_y = hs._split(y, 2, check_energy=check)
 		_y[1] += h * hs.y_dot(t, _y[0])
 		if check:
@@ -673,15 +674,15 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 			_y[-1] += h * hs.k_dot(t, _y[1])
 		yr = xp.concatenate((_y[0], _y[1]), axis=None)
 		yr = _coupling(h, yr)
-		if diss != 0:
+		if diss is not None:
 			yr = _dissipate(h * diss, yr)
 		if not check:
 			return yr
 		return xp.append(yr, _y[-1])
 		
-	def _chi_ext_star(h:float, t:float, y:xp.ndarray, check:bool=False) -> xp.ndarray:
+	def _chi_ext_star(h: float, t: float, y: xp.ndarray, check: bool=False) -> xp.ndarray:
 		yr = y if not check else y[:-1]
-		if diss != 0:
+		if diss is not None:
 			yr = _dissipate(h * diss, yr)
 		_y = xp.split(_coupling(h, yr), 2)
 		_y[0] += h * hs.y_dot(t, _y[1])
@@ -694,7 +695,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 			return xp.concatenate((_y[0], _y[1]), axis=None)
 		return xp.concatenate((_y[0], _y[1], y[-1]), axis=None)
 	
-	def _residual(mu:xp.ndarray, t:float, y:xp.ndarray) -> xp.ndarray:
+	def _residual(mu: xp.ndarray, t: float, y: xp.ndarray) -> xp.ndarray:
 		mu_ext = xp.concatenate((mu, -mu), axis=None)
 		y1, y2 = xp.split(integrator._integrate_onestep(t, y + mu_ext, _chi_ext, _chi_ext_star)[1], 2)
 		return  y1 - y2 + 2 * mu
@@ -746,7 +747,7 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 	y_vec[:] = xp.nan
 	
 	_projection = 'none' if projection is None else projection
-	count = 0
+	proj_dist, count = 0., 0
 	for _, t in enumerate(times):
 		if (count <= len(t_eval) - 1) and (xp.abs(times - t_eval[count]).argmin() == _):
 			t_vec[count] = t
@@ -767,24 +768,23 @@ def solve_ivp_sympext(hs:HamSys, t_span:tuple, y0:xp.ndarray, t_eval:Union[list,
 			_chi_ext_star_ = partial(_chi_ext_star, check=check_energy_)
 			y_ = integrator._integrate_onestep(t, y_, _chi_ext_, _chi_ext_star_)[1]
 			if projection == 'midpoint':
-				y_ = _midpoint(y_)
-			if _projection == 'symmetric':
+				y_, _dist = _midpoint(y_)
+			elif _projection == 'symmetric':
 				yi = y_ if not check_energy_ else y_[:-1]
 				yi = yi +  xp.concatenate((mu_, -mu_), axis=None)
 				y_ = yi if not check_energy_ else xp.append(yi, y_[-1])
-
+				_dist = xp.linalg.norm(mu_)
+			else:
+				_dist = _distance(y_)
+			proj_dist = _dist if _dist < proj_dist else proj_dist
 	sol = OdeSolution(t=t_vec, y=y_vec, step=step)
-	y_ = hs._split(sol.y, hs._ysplit, check_energy=check_energy_)
-	if hs._ysplit == 2:
-		sol.y = (y_[0] + y_[1]) / 2
-		sol.dist_copy = xp.amax(xp.abs(y_[0] - y_[1]))
-	else:
-		sol.y = xp.concatenate(((y_[0] + y_[2]) / 2, (y_[1] + y_[3]) / 2), axis=0)
-		sol.dist_copy = max(xp.amax(xp.abs(y_[0] - y_[2])), xp.amax(xp.abs(y_[1] - y_[3])))
-	sol.projection = _projection
+	y_ = hs._split(sol.y, 2, check_energy=check_energy_)
+	sol.y = (y_[0] + y_[1]) / 2
 	if check_energy_:
 		sol.k = y_[-1] / 2
 	if check_energy:
 		sol.err = hs.compute_energy(sol)
+	sol.projection = _projection
+	sol.proj_dist = proj_dist
 	return sol
 

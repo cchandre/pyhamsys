@@ -118,7 +118,7 @@ class HamSys:
 	def _y_dot_ext(self, t: float, z: xp.ndarray) -> xp.ndarray:
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0: xp.ndarray, t_eval, extension: bool=False, check_energy: bool=False, projection: str=None, display: bool=True, solver: str="BM4", timestep: float=xp.inf, omega: float=10, diss: float=None, tol: float=1e-8, max_iter: int=100) -> OdeSolution:
+	def integrate(self, z0: xp.ndarray, t_eval, extension: bool=False, check_energy: bool=False, projection: str=None, display: bool=True, solver: str="BM4", timestep: float=xp.inf, omega: float=None, diss: float=None, tol: float=1e-8, max_iter: int=100) -> OdeSolution:
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 
@@ -137,7 +137,7 @@ class HamSys:
 		check_energy : bool, optional
 			If True, adds an auxiliary variable to check energy conservation.
 		omega : float, optional
-			Frequency parameter for symplectic extension solvers.
+			Frequency parameter for symplectic extension solvers. default=None
 		diss : float, optional
 			Dissipation parameter for symplectic extension solvers.
 		projection : str, optional
@@ -533,7 +533,7 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 	return OdeSolution(t=t_out, y=y_out, step=step)
 
 def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[list, xp.ndarray]=None, 
-					  method: str='BM4', step: float=xp.inf, omega: float=10, diss: float=None, 
+					  method: str='BM4', step: float=xp.inf, omega: float=None, diss: float=None, 
 					  command: Callable=None, check_energy: bool=False, projection: str=None, max_iter: int=100, tol: float=1e-10) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
@@ -583,7 +583,7 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	step : float
 		Step size.
 	omega : float, optional
-		Coupling parameter in the extended phase space (see [1])
+		Coupling parameter in the extended phase space (see [1]); default=None
 	command : function of (t, y) or None, optional
 		Function to be run at each step size. 
 	check_energy : bool, optional
@@ -629,15 +629,14 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	check_energy_ = check_energy * hs._time_dependent
 	end_idx = -1 if check_energy_ else None
 
-	if getattr(hs, 'btype', None) not in ['pq', 'psi'] and not hasattr(hs, 'coupling'):
-		raise ValueError("The attribute 'coupling' should be defined")
-
 	J20, J22 = xp.array([[1, 1], [1, 1]]) / 2, xp.array([[1, -1], [-1, 1]]) / 2
 	J40, J42c, J42s = xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]]) / 2, \
 		xp.array([[1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0], [0, -1, 0, 1]]) / 2, \
 		xp.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 1, 0, -1], [-1, 0, 1, 0]]) / 2
 	
 	def _coupling(h: float, y: xp.ndarray) -> xp.ndarray:
+		if omega is None:
+			return y
 		if hasattr(hs, 'coupling'):
 			return hs.coupling(h, y, omega).flatten()
 		if hs.btype == 'psi':

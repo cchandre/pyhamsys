@@ -169,7 +169,13 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
   - `method` : string, optional  
  	Integration methods are listed on [pyhamsys](https://pypi.org/project/pyhamsys/). Default is 'BM4'.
   - `omega` (for `solve_ivp_sympext`) : float, optional  
-   	Coupling parameter in the extended phase space (see [3]). Default is 10.
+   	Coupling parameter in the extended phase space (see [3]). Default is None.
+  - `projection` (for `solve_ivp_sympext`) : str, optional
+	If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase space to the true phase space. None is the default.
+  - `tol` (for `solve_ivp_sympext`) : float, optional
+	Tolerance for the implict determination of the symmetric projection. 
+  - `max_iter` (for `solve_ivp_sympext`) : int, optional
+	Maximum number of iterations for the implict determination of the symmetric projection.
   - `command` : void function of (*t*, *y*), optional    
 	Void function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, modify global or mutable variables, or register specific events).
   - `check_energy` (for `solve_ivp_sympext`) : bool, optional  

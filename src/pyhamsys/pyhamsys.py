@@ -118,7 +118,7 @@ class HamSys:
 	def _y_dot_ext(self, t: float, z: xp.ndarray) -> xp.ndarray:
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0: xp.ndarray, t_eval, extension: bool=False, check_energy: bool=False, projection: str=None, display: bool=True, solver: str="BM4", timestep: float=xp.inf, omega: float=None, diss: float=None, tol: float=1e-8, max_iter: int=100) -> OdeSolution:
+	def integrate(self, z0: xp.ndarray, t_eval, extension: bool=False, check_energy: bool=False, projection: str=None, display: bool=True, solver: str="BM4", timestep: float=xp.inf, omega: float=None, diss: float=None, tol: float=1e-8, max_iter: int=100, command: Callable=None) -> OdeSolution:
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 
@@ -178,9 +178,9 @@ class HamSys:
 			sol = self.rectify_sol(sol, check_energy=check_energy)
 			sol.step = timestep
 		elif extension:
-			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega, diss=diss, projection=projection, tol=tol, max_iter=max_iter)
+			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega, diss=diss, projection=projection, tol=tol, max_iter=max_iter, command=command)
 		else:
-			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver)
+			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, command=command)
 		sol.cpu_time = time.process_time() - start
 		if display:
 			print(f'\033[90m        Computation finished in {int(sol.cpu_time)} seconds \033[00m')
@@ -533,8 +533,7 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 	return OdeSolution(t=t_out, y=y_out, step=step)
 
 def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[list, xp.ndarray]=None, 
-					  method: str='BM4', step: float=xp.inf, omega: float=None, diss: float=None, 
-					  command: Callable=None, check_energy: bool=False, projection: str=None, max_iter: int=100, tol: float=1e-10) -> OdeSolution:
+					  method: str='BM4', step: float=xp.inf, omega: float=None, diss: float=None, projection: str=None, max_iter: int=100, tol: float=1e-10, command: Callable=None, check_energy: bool=False) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -628,6 +627,7 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	"""
 	check_energy_ = check_energy * hs._time_dependent
 	end_idx = -1 if check_energy_ else None
+	projection = None if omega is not None else 'midpoint'
 
 	J20, J22 = xp.array([[1, 1], [1, 1]]) / 2, xp.array([[1, -1], [-1, 1]]) / 2
 	J40, J42c, J42s = xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]]) / 2, \
@@ -743,7 +743,7 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	if t_eval is None:
 		t_eval = times.copy()
 	t_out = xp.empty_like(t_eval)
-	y_out = xp.empty(y_.shape + t_out.shape, dtype=y0.dtype)
+	y_out = xp.empty(y_.shape + t_out.shape, dtype=y_.dtype)
 	y_out[:] = xp.nan
 	
 	_projection = 'none' if projection is None else projection

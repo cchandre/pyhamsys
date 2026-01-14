@@ -27,12 +27,12 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from pyhamsys import HamSys, solve_ivp_sympext
+from pyhamsys import HamSys
 
 ## Parameters
 potential = lambda x: -1 / np.sqrt(x**2 + 1)
 psi0 = lambda x: np.exp(-x**2 / 50)
-tf, tstep = 5e1, 1e-2
+tf, timestep = 5e1, 1e-2
 L, N = 100, 2**10
 
 ## Intermediate variables
@@ -46,7 +46,7 @@ def y_dot(t, psi):
 	lap_psi = (psi_ + _psi - 2 * psi) / dx**2
 	return -1j * (-lap_psi / 2 + vgrid * psi) 
 
-hs = HamSys(ndof=N, complex=True, y_dot=y_dot)
+hs = HamSys(ndof=N, btype='psi', y_dot=y_dot)
 
 ## Integration and plot of wavefunction
 plt.ion()
@@ -58,12 +58,12 @@ ax.set_ylabel(r'$\vert\psi (x,t)\vert^2$')
 ax.set_ylim((-0.1, 3.5))
 
 def plot(t, psi):
-	if (int(t / tstep) + 1) % 50 == 0:
+	if (int(t / timestep) + 1) % 50 == 0:
 		h.set_ydata(np.abs(psi)**2)
 		ax.set_title(f'$t = {{{t:.1f}}}$', loc='right', pad=20)
 		plt.pause(1e-4)
 		
-sol = solve_ivp_sympext(hs, (0, tf), psi0(xgrid), step=tstep, command=plot)
+sol = hs.integrate(psi0(xgrid), (0, tf), extension=True, timestep=timestep, command=plot)
 
 plt.ioff()
 plt.show()

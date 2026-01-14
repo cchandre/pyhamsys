@@ -28,13 +28,13 @@
 import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
-from pyhamsys import HamSys, solve_ivp_sympext
+from pyhamsys import HamSys
 
 ## Parameters
-epsilon = 0.027				# parameter of the Hamiltonian system
-step = 2 * np.pi / 50		# integration timestep 
-N = 50  					# number of trajectories
-nf = 1000					# number of points on the Poincaré section per trajectory
+epsilon = 0.027					# parameter of the Hamiltonian system
+timestep = 2 * np.pi / 50		# integration timestep 
+N = 50  						# number of trajectories
+nf = 1000						# number of points on the Poincaré section per trajectory
 
 ## Hamiltonian system
 def hamiltonian(q, p, t):
@@ -49,7 +49,7 @@ p0 = np.random.random(N)
 y0 = np.concatenate((x0, p0), axis=None)
 
 ## Integration
-sol = solve_ivp_sympext(hs, (0, 2 * np.pi * nf), y0, step=step, t_eval=2 * np.pi * np.arange(nf + 1))
+sol = hs.integrate(y0, 2 * np.pi * np.arange(nf + 1), extension=True, timestep=timestep)
 
 ## Plot of the Poincaré section
 fig, ax = plt.subplots()

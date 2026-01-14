@@ -63,7 +63,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 - `hamiltonian` : callable, optional   
 	A function of (*t*, *y*) which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
-- `coupling` : callable, optional
+- `coupling` (for exended phases space as in [3]) : callable, optional
   	A function of (*h*, *y*, &omega;) which advances *y* from time *t* to *t*+*h* for the coupling Hamiltonian $\omega (y - \bar{y})^2/2$. This function is already computed for the types btype='pq' and 'psi'. For any other type, it should be provided. 
 
 ### Functions
@@ -105,12 +105,18 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
   Solver method. Must be a member of `METHODS` (symplectic solvers), or  `IVP_METHODS` (classical IVP solvers).
    - **timestep** (`float`)  
   Fixed integration time step (used in symplectic solvers and to bound steps in IVP solvers).    
-   - **omega** (`float`, optional, default=`10`)  
-  Restrain parameter for symplectic extension solvers.
+   - **omega** (`float`, optional, default=None)  
+  Restraint parameter for symplectic extension solvers as in [3].
    - **diss** (`float`, optional, default=`0`)   
-  Dissipative coefficient for improved accuracy when time steps are too large.   
+  Dissipative coefficient for improved accuracy when time steps are too large.
+   - **projection** (`str`, optional, default=None)
+  If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase space to the true phase
+  space. Possibilities include `symmetric` and `midpoint`. 
    - **tol** (`float`, optional, default=`1e-8`)  
-  Absolute and relative tolerance for IVP solvers.  
+  Absolute and relative tolerance for IVP solvers.
+  Also, tolerance for the implict determination of the symmetric projection.
+  - **max_iter** (`int`, optional, default=100)
+  Maximum number of iterations for the implict determination of the symmetric projection.
 
     #### Returns
    - **sol** (`object`)  
@@ -120,7 +126,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
      - `step` : integration time step  
      - `cpu_time` : total CPU time used  
      - `err` : (if `check_energy=True`) maximum error in energy  
-     - `dist_copy` : (if applicable) distance between trajectory copies  
+     - `proj_dist` : Maximum distance between the two copies of the state in the extended phase space.  
 
     #### Notes
     - **Symplectic solvers (`METHODS`)**  
@@ -163,7 +169,13 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
   - `method` : string, optional  
  	Integration methods are listed on [pyhamsys](https://pypi.org/project/pyhamsys/). Default is 'BM4'.
   - `omega` (for `solve_ivp_sympext`) : float, optional  
-   	Coupling parameter in the extended phase space (see [3]). Default is 10.
+   	Coupling parameter in the extended phase space (see [3]). Default is None.
+  - `projection` (for `solve_ivp_sympext`) : str, optional
+	If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase space to the true phase space. None is the default.
+  - `tol` (for `solve_ivp_sympext`) : float, optional
+	Tolerance for the implict determination of the symmetric projection. 
+  - `max_iter` (for `solve_ivp_sympext`) : int, optional
+	Maximum number of iterations for the implict determination of the symmetric projection.
   - `command` : void function of (*t*, *y*), optional    
 	Void function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, modify global or mutable variables, or register specific events).
   - `check_energy` (for `solve_ivp_sympext`) : bool, optional  
@@ -177,7 +189,7 @@ The function `solve_ivp_sympext` solves an initial value problem using an explic
 	Values of the solution `y` at `t`.
    - `k` (for `solve_ivp_sympext`) : ndarray, shape (n_points,)   
      	Values of `k` at `t`. Only for `solve_ivp_sympext` and if `check_energy` is True for a Hamiltonian system with an explicit time dependence (i.e., the parameter `ndof` of `hs`  is half an integer).
-   - `dist_copy` (for `solve_ivp_sympext`) : float   
+   - `proj_dist` (for `solve_ivp_sympext`) : float   
         Maximum distance between the two copies of the state in the extended phase space.   
    - `err` (for `solve_ivp_sympext`) : float   
      	Error in the computation of the total energy. Only for `solve_ivp_sympext` and if `check_energy` is True.
@@ -203,7 +215,7 @@ from pyhamsys import HamSys, solve_ivp_sympext
 hs = HamSys()
 hamiltonian = lambda q, p, t: p**2 / 2 - sp.cos(q)
 hs.compute_vector_field(hamiltonian, output=True)
-sol = solve_ivp_sympext(hs, (0, 20), xp.asarray([3, 0]), step=1e-1, check_energy=True)
+sol = solve_ivp_sympext(hs, (0, 20), xp.asarray([3, 0]), step=1e-1, omega=10, check_energy=True)
 print(f"Error in energy : {sol.err}")
 plt.plot(sol.y[0], sol.y[1])
 plt.show()

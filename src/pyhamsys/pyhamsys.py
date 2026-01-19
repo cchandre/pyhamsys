@@ -215,6 +215,7 @@ class HamSys:
 	
 	def save_data(self, *data, params: dict=None, filename: str='', author: str='', display: bool=True) -> None:
 		params = dict(params) if params else {}
+		params = {k: (v if v is not None else []) for k, v in params.items()}
 		for i, d in enumerate(data):
 			params[f'data{i}'] = d
 		params['date'] = datetime.now().strftime("%B %d, %Y")

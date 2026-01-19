@@ -51,7 +51,7 @@ class OdeSolution(OptimizeResult):
 
 class HamSys:
 	def __init__(self, ndof: float=1, btype: str='pq', y_dot: Callable=None,\
-			   k_dot: Callable=None, hamiltonian: Callable=None) -> None:
+			   k_dot: Callable=None, hamiltonian: Callable=None, coupling: Callable=None) -> None:
 		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
 			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
 		self._ndof = int(ndof)
@@ -65,6 +65,8 @@ class HamSys:
 			self.k_dot = k_dot
 		if hamiltonian is not None:
 			self.hamiltonian = hamiltonian
+		if coupling is not None:
+			self.coupling = coupling
 
 	def _split(self, y: xp.ndarray, n: int, check_energy: bool=False):
 		ys = xp.split(y[:-1] if check_energy else y, n)

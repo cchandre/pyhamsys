@@ -512,9 +512,9 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 	if t_eval is not None:
 		t_eval = xp.asarray(t_eval)
 
-	nstep, step = adjust_step(t_span, step, t_eval)
+	nstep, step_ = adjust_step(t_span, step, t_eval)
 
-	integrator = SymplecticIntegrator(method, step)
+	integrator = SymplecticIntegrator(method, step_)
 
 	times = xp.linspace(t0, tf, nstep + 1)
 	if t_eval is None:
@@ -533,7 +533,7 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 			command(t, y_)
 		if t != times[-1]:
 			y_ = integrator._integrate_onestep(t, y_, chi, chi_star)[1]
-	return OdeSolution(t=t_out, y=y_out, step=step)
+	return OdeSolution(t=t_out, y=y_out, step=step_)
 
 def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[list, xp.ndarray]=None, 
 					  method: str='BM4', step: float=xp.inf, omega: float=None, diss: float=None, projection: str=None, max_iter: int=100, tol: float=1e-10, command: Callable=None, check_energy: bool=False) -> OdeSolution:

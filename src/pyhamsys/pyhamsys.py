@@ -640,12 +640,14 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	def _coupling(h: float, y: xp.ndarray) -> xp.ndarray:
 		if omega is None:
 			return y
-		if hasattr(hs, 'coupling'):
+		if hasattr(hs, 'coupling') and callable(hs.coupling):
 			return hs.coupling(h, y, omega).flatten()
 		if hs.btype == 'psi':
 			J = J20 + xp.exp(2j * omega * h) * J22
 		elif hs.btype == 'pq': 
 			J = J40 + xp.cos(2 * omega * h) * J42c + xp.sin(2 * omega * h) * J42s
+		else:
+			return y
 		return xp.einsum('ij,j...->i...', J, xp.split(y, hs._ysplit)).flatten()
 	
 	def _dissipate(h: float, y: xp.ndarray) -> xp.ndarray:

@@ -254,6 +254,27 @@ def adjust_step(t_span: tuple, step: float, t_eval: xp.ndarray=None) -> float:
 	nstep = (int(xp.ceil((t_span[1] - t_span[0]) / step)) // n_eval) * n_eval + n_eval
 	return nstep, (t_span[1] - t_span[0]) / nstep
 
+def chi_potential(h, t, x, p, k=None, dvdx=None, dvdt=None):
+	if k is not None and dvdt is None:
+		raise ValueError("If k is provided, dvdt must also be provided.")
+	if dvdx is None:
+		raise ValueError("dvdx function must be provided.")
+	p -= h * dvdx(t, x)
+	if k is None:
+		return t + h, x + h * p , p
+	return t + h, x + h * p , p, k - h * dvdt(t, x)
+
+def chi_potential_star(h, t, x, p, k=None, dvdx=None, dvdt=None):
+	if k is not None and dvdt is None:
+		raise ValueError("If k is provided, dvdt must also be provided.")
+	if dvdx is None:
+		raise ValueError("dvdx function must be provided.")
+	x += h * p
+	t += h
+	if k is None:
+		return t, x , p - h * dvdx(t, x)
+	return t, x , p - h * dvdx(t, x), k - h * dvdt(t, x)
+
 def compute_msd(sol: OdeSolution, plot_data: bool=False, output_r2: bool=False):
 	x, y = xp.split(sol.y, 2)
 	nt = len(sol.t)

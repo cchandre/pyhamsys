@@ -104,14 +104,14 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
    - **solver** (`str`, optional, default=`"BM4"`)  
   Solver method. Must be a member of `METHODS` (symplectic solvers), or  `IVP_METHODS` (classical IVP solvers).
    - **timestep** (`float`)  
-  Fixed integration time step (used in symplectic solvers and to bound steps in IVP solvers).    
+  Fixed integration time step (used in symplectic solvers and to bound steps in IVP solvers).
+  - **projection** (`str`, optional, default=None)
+  If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase space to the true phase
+  space. Possibilities include `symmetric` and `midpoint`. 
    - **omega** (`float`, optional, default=None)  
   Restraint parameter for symplectic extension solvers as in [3].
    - **diss** (`float`, optional, default=`0`)   
   Dissipative coefficient for improved accuracy when time steps are too large.
-   - **projection** (`str`, optional, default=None)
-  If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase space to the true phase
-  space. Possibilities include `symmetric` and `midpoint`. 
    - **tol** (`float`, optional, default=`1e-8`)  
   Absolute and relative tolerance for IVP solvers.
   Also, tolerance for the implict determination of the symmetric projection.

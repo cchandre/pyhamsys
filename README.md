@@ -3,7 +3,6 @@ pyHamSys (short for Python Hamiltonian Systems) is a Python library for scientif
 
 ![PyPI](https://img.shields.io/pypi/v/pyhamsys)
 ![License](https://img.shields.io/badge/license-BSD-lightgray)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/pyhamsys.svg?label=PyPI%20downloads)
 [![SWH](https://archive.softwareheritage.org/badge/swh:1:dir:ee0bf7bb42dc8bba132eb67175cfb384be7c9f3d/)](https://archive.softwareheritage.org/swh:1:dir:ee0bf7bb42dc8bba132eb67175cfb384be7c9f3d;origin=https://github.com/cchandre/pyhamsys;visit=swh:1:snp:37db4c3c24cb9f94211881570756d4265235afe8;anchor=swh:1:rev:bcf5c7d9174d7401ec40b6abeb6d8fe689fca26c)
 
 ## Installation 
@@ -20,6 +19,7 @@ pyHamSys features a dedicated class, `SymplecticIntegrator`, which provides a co
 Symplectic-split integrators decompose the Hamiltonian into subcomponents that are individually solvable, allowing for efficient and accurate integration. This decomposition is particularly effective for complex or high-dimensional systems, as it minimizes numerical drift and conserves critical invariants like energy over extended time intervals.
 The `SymplecticIntegrator` class offers a variety of splitting methods, enabling users to select the most appropriate scheme for their specific Hamiltonian system and computational requirements. Each integrator is implemented to handle both autonomous and non-autonomous systems, supporting applications in classical mechanics, molecular dynamics, astrophysics, and quantum mechanics.
 
+Some pre-defined integrators are:
 
 - `Verlet` (order 2, all purpose), also referred to as Strang or Störmer-Verlet splitting 
 - From [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L): 
@@ -43,6 +43,8 @@ The `SymplecticIntegrator` class offers a variety of splitting methods, enabling
     - `ABA104` (order (10,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
     - `ABA864` (order (8,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
     - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
+ 
+There is also the possibility to define an integrator by providing the coefficients of the split in the form of a vector &alpha; (with the attribute `alpha`). Note that the sum of the coefficients in &alpha; must be equal to 1/2 (see [2] for more detail). 
     
 All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator. These integrators are used in the functions `solve_ivp_symp` and `solve_ivp_sympext` by specifying the entry `method` (default is `BM4`). 
 

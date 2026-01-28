@@ -39,12 +39,16 @@ from scipy.io import savemat
 import sympy as sp
 from functools import partial 
 import time
+import re
 from datetime import datetime
 
 METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL', 'PEFRL', 'VEFRL', 'BM4', 'BM6', 'RKN4b', 'RKN6b', 'RKN6a', 'ABA104', 'ABA864', 'ABA1064']
 
 IVP_METHODS = list(IVP_METHODS.keys())
 ALL_METHODS = METHODS + IVP_METHODS
+
+def is_yoshida_format(name: str) -> bool:
+    return bool(re.match(r'^Yo\d+$', name))
 
 class OdeSolution(OptimizeResult):
     pass
@@ -120,7 +124,7 @@ class HamSys:
 	def _y_dot_ext(self, t: float, z: xp.ndarray) -> xp.ndarray:
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0: xp.ndarray, t_eval, extension: bool=False, check_energy: bool=False, projection: str=None, display: bool=True, solver: str="BM4", timestep: float=xp.inf, omega: float=None, diss: float=None, tol: float=1e-8, max_iter: int=100, command: Callable=None) -> OdeSolution:
+	def integrate(self, z0: xp.ndarray, t_eval, check_energy: bool=False, extension: bool=False, projection: str=None, display: bool=True, solver: str="BM4", timestep: float=xp.inf, omega: float=None, diss: float=None, tol: float=1e-8, max_iter: int=100, command: Callable=None) -> OdeSolution:
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 
@@ -161,13 +165,13 @@ class HamSys:
 		sol : object
 			Solution object with attributes depending on solver used.
 		"""
-		if solver not in ALL_METHODS:
+		if solver not in ALL_METHODS and not is_yoshida_format(solver):
 			raise ValueError(f"Solver '{solver}' not recognized. "
-                 f"Valid solvers are {ALL_METHODS}.")
-		if solver in IVP_METHODS or (solver in METHODS and extension):
+                 f"Valid solvers are {ALL_METHODS} or Yo# with # any integer.")
+		if solver in IVP_METHODS or ((solver in METHODS or is_yoshida_format(solver)) and extension):
 			if not hasattr(self, 'y_dot'):
 				raise ValueError("In order to use an IVP solver or an extension in phase space, 'y_dot' must be provided.")
-		if solver in METHODS and not extension:
+		if (solver in METHODS or is_yoshida_format(solver)) and not extension:
 			if not hasattr(self, 'chi') or not hasattr(self, 'chi_star'):
 				raise ValueError("In order to use a symplectic integrator, 'chi' and 'chi_star' must be provided.")
 		if solver in IVP_METHODS and check_energy:
@@ -183,10 +187,17 @@ class HamSys:
 			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega, diss=diss, projection=projection, tol=tol, max_iter=max_iter, command=command)
 		else:
 			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, command=command)
+		if check_energy:
+			try: 
+				sol.err = self.compute_energy(sol)
+			except:
+				sol.err = None
+			if not hasattr(self, 'hamiltonian'):
+				print(" Warning: In order to check energy, the attribute 'hamiltonian' must be provided.")
 		sol.cpu_time = time.process_time() - start
 		if display:
 			print(f'\033[90m        Computation finished in {int(sol.cpu_time)} seconds \033[00m')
-			if hasattr(sol, 'err'):
+			if hasattr(sol, 'err') and sol.err is not None:
 				print(f'\033[90m           with error in energy = {sol.err:.2e} \033[00m')
 			if hasattr(sol, 'proj_dist'):
 				print(f'\033[90m           with projection ({sol.projection}) distance = {sol.proj_dist:.2e}\033[00m')
@@ -221,8 +232,7 @@ class HamSys:
 		for i, d in enumerate(data):
 			params[f'data{i}'] = d
 		params['date'] = datetime.now().strftime("%B %d, %Y")
-		if author:
-			params['author'] = author
+		params['author'] = author if author else 'cristel.chandre@cnrs.fr'
 		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 		if not filename.endswith('.mat'):
 			filename = f"{filename}_{timestamp}.mat"
@@ -388,9 +398,12 @@ class SymplecticIntegrator:
     ----------
     name : str
         Name of the symplectic integrator. 
-		Integration methods are listed in https://pypi.org/project/pyhamsys/ 
+		Pre-defined integration methods are listed in https://pypi.org/project/pyhamsys/ 
+		Custom integrators can be defined by providing the 'alpha' parameter.
 	step : float
 		Step size.
+	alpha : array_like, optional
+		Coefficients for the custom symplectic integrator. Default is None. 
     """
 	def __repr__(self) -> str:
 		return f'{self.__class__.__name__}({self.name})'
@@ -398,12 +411,18 @@ class SymplecticIntegrator:
 	def __str__(self) -> str:
 		return f'{self.name}'
 
-	def __init__(self, name: str, step: float) -> None:
+	def __init__(self, name: str, step: float, alpha: xp.ndarray=None) -> None:
 		self.name = name
 		self.step = step
-		if (self.name not in METHODS) and (self.name[:2] != 'Yo'):
-			raise ValueError(f"The chosen integrator must be one of {METHODS}.")
-		if self.name == 'Verlet':
+		if self.name not in METHODS and not is_yoshida_format(self.name) and alpha is None:
+			raise ValueError(f"The chosen integrator must be one of {METHODS} or alpha has to be provided.")
+		if alpha is not None and (self.name in METHODS or is_yoshida_format(self.name)):
+			print(f"Warning: alpha is provided but will be ignored since the chosen integrator {self.name} is pre-defined.")
+		if alpha is not None and self.name not in METHODS and not is_yoshida_format(self.name):
+			alpha_s = xp.asarray(alpha)
+			if xp.sum(alpha_s) != 0.5:
+				raise ValueError("The sum of the alpha coefficients must be equal to 0.5.")
+		elif self.name == 'Verlet':
 			alpha_s = [0.5]
 		elif self.name == 'FR':
 			theta = 1 / (2 - 2**(1/3))
@@ -431,7 +450,7 @@ class SymplecticIntegrator:
 				xi, lam, chi = 0.1720865590295143, -0.09156203075515678, -0.1616217622107222
 			alpha_s = [xi, 0.5 - lam - xi, lam + xi + chi -0.5, 0.5 - chi - xi]
 		elif self.name == 'M2':
-			y = (2*xp.sqrt(326)-36)**(1/3)
+			y = (2 * xp.sqrt(326) - 36)**(1/3)
 			z = (y**2 + 6 * y -2) / (12 * y)
 			alpha_s = [z, 0.5 - z]
 		elif self.name == 'M4':
@@ -452,18 +471,13 @@ class SymplecticIntegrator:
 			alpha_s = [0.07113342649822312, 0.1119502609739741, 0.129203166982666, 0.1815796929159088, 0.3398320688569059, -0.3663966873688647, 0.03269807114118675]
 		elif self.name == 'ABA1064':
 			alpha_s = [0.03809449742241219, 0.05776438341466301, 0.08753433270225074, 0.116911820440748, 0.0907158752847932, 0.1263544726941979, 0.3095552309573282, -0.3269306129163933]
-		elif self.name != 'Simple':
-			raise NameError(f'{self.name} integrator not defined')
-		if self.name == 'Simple':
-			self.alpha_s = [self.step]
-			self.alpha_o = [1]
-		else:
-			self.alpha_s = self.step * xp.concatenate((alpha_s, xp.flip(alpha_s)))
-			self.alpha_o = xp.tile([1, 0], len(alpha_s))
+		alpha_s_ = self.step * xp.concatenate((alpha_s, xp.flip(alpha_s)))
+		alpha_o_ = xp.tile([True, False], len(alpha_s))
+		self._sequence = tuple(zip(alpha_s_, alpha_o_))
 
 	def _integrate_onestep(self, t: float, y: xp.ndarray, chi: Callable, chi_star: Callable) -> Tuple[float, xp.ndarray]:
-		for h, st in zip(self.alpha_s, self.alpha_o):
-			y = chi(h, t + h, y) if st==0 else chi_star(h, t, y)
+		for h, st in self._sequence:
+			y = chi(h, t + h, y) if st else chi_star(h, t, y)
 			t += h
 		return t, y
 	

@@ -21,21 +21,21 @@ The `SymplecticIntegrator` class offers a variety of splitting methods, enabling
 
 Some pre-defined integrators are:
 
-- `Verlet` (order 2, all purpose), also referred to as Strang or Störmer-Verlet splitting 
+- `Verlet` (order 2, all-purpose), also referred to as Strang or Störmer-Verlet splitting 
 - From [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L): 
-    - `FR` (order 4, all purpose)
+    - `FR` (order 4, all-purpose)
 - From [Yoshida, Phys. Lett. A 150, 262 (1990)](https://doi.org/10.1016/0375-9601(90)90092-3):
-    - `Yo#`: # should be replaced by an even integer, e.g., `Yo6` for 6th order symplectic integrator (all purpose)
-    - `Yos6`: (order 6, all purpose) optimized symplectic integrator (solution A from Table 1)
+    - `Yo#`: # should be replaced by an even integer, e.g., `Yo6` for 6th order symplectic integrator (all-purpose)
+    - `Yos6`: (order 6, all-purpose) optimized symplectic integrator (solution A from Table 1)
 - From [McLachlan, SIAM J. Sci. Comp. 16, 151 (1995)](https://doi.org/10.1137/0916010):
-    - `M2` (order 2, all purpose)
-    - `M4` (order 4, all purpose)
+    - `M2` (order 2, all-purpose)
+    - `M4` (order 4, all-purpose)
 - From [Omelyan, Mryglod, Folk, Comput. Phys. Commun. 146, 188 (2002)](https://doi.org/10.1016/S0010-4655(02)00451-4): 
     - `EFRL` (order 4) optimized for *H* = *A* + *B*
     - `PEFRL` and `VEFRL` (order 4) optimized for *H* = *A*(*p*) + *B*(*q*). For `PEFRL`, *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>). For `VEFRL`, *chi* should be exp(*h* X<sub>B</sub>)exp(*h* X<sub>A</sub>).
 - From [Blanes, Moan, J. Comput. Appl. Math. 142, 313 (2002)](https://doi.org/10.1016/S0377-0427(01)00492-7):
-    - `BM4` (order 4, all purpose) refers to S<sub>6</sub> 
-    - `BM6` (order 6, all purpose) refers to S<sub>10</sub>
+    - `BM4` (order 4, all-purpose) refers to S<sub>6</sub> 
+    - `BM6` (order 6, all-purpose) refers to S<sub>10</sub>
     - `RKN4b` (order 4) refers to SRKN<sub>6</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(*h* X<sub>B</sub>)exp(*h* X<sub>A</sub>).
     - `RKN6b` (order 6) refers to SRKN<sub>11</sub><sup>*b*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(*h* X<sub>B</sub>)exp(*h* X<sub>A</sub>).
     - `RKN6a` (order 6) refers to SRKN<sub>14</sub><sup>*a*</sup> optimized for *H* = *A*(*p*) + *B*(*q*). Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
@@ -46,7 +46,7 @@ Some pre-defined integrators are:
  
 There is also the possibility to define an integrator by providing the coefficients of the split in the form of a vector &alpha; (with the attribute `alpha`). Note that the sum of the coefficients in &alpha; must be equal to 1/2 (see [2] for more detail). 
     
-All purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator. These integrators are used in the functions `solve_ivp_symp` and `solve_ivp_sympext` by specifying the entry `method` (default is `BM4`). 
+All-purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator. These integrators are used in the functions `solve_ivp_symp` and `solve_ivp_sympext` by specifying the entry `method` (default is `BM4`). 
 
 ----
 ## HamSys class   
@@ -97,10 +97,10 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
   Initial condition(s) of the system.
    - **t_eval** (`array_like`)  
   Times at which the solution is evaluated and stored.
-   - **extension** (`bool`, optional, default=`False`)  
-  If `True`, use a symplectic extension method in phase space.
-   - **check_energy** (`bool`, optional, default=`False`)  
+  - **check_energy** (`bool`, optional, default=`False`)  
   If `True`, appends an auxiliary variable to track the Hamiltonian. Requires `hamiltonian` and `k_dot` to be defined.
+  - **extension** (`bool`, optional, default=`False`)  
+  If `True`, use a symplectic extension method in phase space.
    - **display** (`bool`, optional, default=`True`)  
   If `True`, prints runtime information such as CPU time, error in energy, and copy distance (if available).      
    - **solver** (`str`, optional, default=`"BM4"`)  
@@ -119,7 +119,9 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
   Also, tolerance for the implict determination of the symmetric projection.
   - **max_iter** (`int`, optional, default=100)
   Maximum number of iterations for the implict determination of the symmetric projection.
-
+  - **command** (void function of (*t*, *y*), optional)    
+	Void function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, modify global or mutable variables, or register specific events).
+  
     #### Returns
    - **sol** (`object`)  
     Solution object. Its attributes depend on the solver used:
@@ -127,8 +129,9 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
      - `t` : time points  
      - `step` : integration time step  
      - `cpu_time` : total CPU time used  
-     - `err` : (if `check_energy=True`) maximum error in energy  
-     - `proj_dist` : Maximum distance between the two copies of the state in the extended phase space.  
+     - `err` : (if `check_energy`=True) maximum error in energy
+     - `projection` : Type of projection successfully used in the computation (only for `extension`=True)   
+     - `proj_dist` : Maximum distance between the two copies of the state in the extended phase space (only for `extension`=True)    
 
     #### Notes
     - **Symplectic solvers (`METHODS`)**  

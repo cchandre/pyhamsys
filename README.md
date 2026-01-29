@@ -19,7 +19,7 @@ pyHamSys features a dedicated class, `SymplecticIntegrator`, which provides a co
 Symplectic-split integrators decompose the Hamiltonian into subcomponents that are individually solvable, allowing for efficient and accurate integration. This decomposition is particularly effective for complex or high-dimensional systems, as it minimizes numerical drift and conserves critical invariants like energy over extended time intervals.
 The `SymplecticIntegrator` class offers a variety of splitting methods, enabling users to select the most appropriate scheme for their specific Hamiltonian system and computational requirements. Each integrator is implemented to handle both autonomous and non-autonomous systems, supporting applications in classical mechanics, molecular dynamics, astrophysics, and quantum mechanics.
 
-Some pre-defined integrators are:
+Pre-defined integrators are:
 
 - `Verlet` (order 2, all-purpose), also referred to as Strang or Störmer-Verlet splitting 
 - From [Forest, Ruth, Physica D 43, 105 (1990)](https://doi.org/10.1016/0167-2789(90)90019-L): 
@@ -42,9 +42,7 @@ Some pre-defined integrators are:
 - From [Blanes, Casas, Farrés, Laskar, Makazaga, Murua, Appl. Numer. Math. 68, 58 (2013)](http://dx.doi.org/10.1016/j.apnum.2013.01.003):
     - `ABA104` (order (10,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
     - `ABA864` (order (8,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
-    - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>).
- 
-There is also the possibility to define an integrator by providing the coefficients of the split in the form of a vector &alpha; (with the attribute `alpha`). Note that the sum of the coefficients in &alpha; must be equal to 1/2 (see [2] for more detail). 
+    - `ABA1064` (order (10,6,4)) optimized for *H* = *A* + &epsilon; *B*. Here *chi* should be exp(*h* X<sub>A</sub>)exp(*h* X<sub>B</sub>). 
     
 All-purpose integrators are for any splitting of the Hamiltonian *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> in any order of the functions *A*<sub>*k*</sub>. Otherwise, the order of the operators is specified for each integrator. These integrators are used in the functions `solve_ivp_symp` and `solve_ivp_sympext` by specifying the entry `method` (default is `BM4`). 
 
@@ -137,9 +135,9 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
     - **Symplectic solvers (`METHODS`)**  
     Require `chi` and `chi_star` to be defined in the class. Preserves geometric properties of Hamiltonian flows.  
     - **IVP solvers (`IVP_METHODS`)**  
-    Require `y_dot` (and `k_dot` if `check_energy=True`). Allow adaptive step sizes bounded by `timestep`.  
+    Require `y_dot` (and `k_dot` if `check_energy`=True). Allow adaptive step sizes bounded by `timestep`.  
     - **Energy checking**  
-    When `check_energy=True`, an auxiliary variable is added and the error in Hamiltonian is computed relative to its initial value. 
+    When `check_energy`=True, an auxiliary variable is added and the error in Hamiltonian is computed relative to its initial value. 
 
 ---
 ## solve_ivp_symp and solve_ivp_sympext

@@ -124,7 +124,7 @@ class HamSys:
 	def _y_dot_ext(self, t: float, z: xp.ndarray) -> xp.ndarray:
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0: xp.ndarray, t_eval, check_energy: bool=False, extension: bool=False, projection: str=None, display: bool=True, solver: str="BM4", timestep: float=xp.inf, omega: float=None, diss: float=None, tol: float=1e-8, max_iter: int=100, command: Callable=None) -> OdeSolution:
+	def integrate(self, z0: xp.ndarray, t_eval, check_energy: bool=False, display: bool=True, solver: str="BM4", timestep: float=xp.inf, command: Callable=None, extension: bool=False, projection: str=None, omega: float=None, diss: float=None, tol: float=1e-8, max_iter: int=100) -> OdeSolution:
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 
@@ -138,27 +138,27 @@ class HamSys:
 			Integration time step.
 		solver : str, optional
 			Solver method. Must be in METHODS or IVP_METHODS.
-		extension : bool, optional
-			Whether to use symplectic extension.
 		check_energy : bool, optional
 			If True, adds an auxiliary variable to check energy conservation.
-		omega : float, optional
-			Frequency parameter for symplectic extension solvers. default=None
-		diss : float, optional
-			Dissipation parameter for symplectic extension solvers.
+		display : bool, optional
+			Whether to print runtime information. Default is True.
+		extension : bool, optional
+			Whether to use symplectic extension.
 		projection : str, optional
 			If specified, uses the 'midpoint' or 'symmetric' projection to move from 
 			the extended phase space to the true phase space. None is the default. 
 			Solver must be in METHODS.
+		omega : float, optional
+			Frequency parameter for symplectic extension solvers. default=None
+		diss : float, optional
+			Dissipation parameter for symplectic extension solvers.
 		tol : float, optional
 			For IVP solvers: absolute and relative tolerance.
 			For symplectic split solvers : tolerance for the implict determination 
-			of the symmetric projection (see sym-proj).
+			of the symmetric projection (if projection='symmetric').
 		max_iter : int, optional
 			Maximum number of iterations for the implict determination 
-			of the symmetric projection (see sym-proj).
-		display : bool, optional
-			Whether to print runtime information.
+			of the symmetric projection (if projection='symmetric').
 
 		Returns
 		-------
@@ -399,11 +399,8 @@ class SymplecticIntegrator:
     name : str
         Name of the symplectic integrator. 
 		Pre-defined integration methods are listed in https://pypi.org/project/pyhamsys/ 
-		Custom integrators can be defined by providing the 'alpha' parameter.
 	step : float
 		Step size.
-	alpha : array_like, optional
-		Coefficients for the custom symplectic integrator. Default is None. 
     """
 	def __repr__(self) -> str:
 		return f'{self.__class__.__name__}({self.name})'
@@ -411,17 +408,11 @@ class SymplecticIntegrator:
 	def __str__(self) -> str:
 		return f'{self.name}'
 
-	def __init__(self, name: str, step: float, alpha: xp.ndarray=None) -> None:
+	def __init__(self, name: str, step: float) -> None:
 		self.name = name
 		self.step = step
-		if self.name not in METHODS and not is_yoshida_format(self.name) and alpha is None:
-			raise ValueError(f"The chosen integrator must be one of {METHODS} or alpha has to be provided.")
-		if alpha is not None and (self.name in METHODS or is_yoshida_format(self.name)):
-			print(f"Warning: alpha is provided but will be ignored since the chosen integrator {self.name} is pre-defined.")
-		if alpha is not None and self.name not in METHODS and not is_yoshida_format(self.name):
-			alpha_s = xp.asarray(alpha)
-			if xp.sum(alpha_s) != 0.5:
-				raise ValueError("The sum of the alpha coefficients must be equal to 0.5.")
+		if self.name not in METHODS and not is_yoshida_format(self.name):
+			raise ValueError(f"The chosen integrator must be one of {METHODS}.")
 		elif self.name == 'Verlet':
 			alpha_s = [0.5]
 		elif self.name == 'FR':
@@ -519,7 +510,8 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 		lie within `t_span`. If None (default), use points selected by the 
 		solver.
 	method : string, optional
-        Integration methods are listed on https://pypi.org/project/pyhamsys/ 
+        Pre-defined integration methods are listed on https://pypi.org/project/pyhamsys/ 
+
 		'BM4' is the default.
 	step : float
 		Step size.
@@ -619,15 +611,15 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 		'BM4' is the default.
 	step : float
 		Step size.
-	omega : float, optional
-		Coupling parameter in the extended phase space (see [1]); default=None
 	command : function of (t, y) or None, optional
 		Function to be run at each step size. 
 	check_energy : bool, optional
 		If True, computes the total energy. Default is False. 
 	projection : str, optional
 		If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase
-		space to the true phase space. None is the default.
+		space to the true phase space. If omega is None, 'midpoint' is the default.
+	omega : float, optional
+		Coupling parameter in the extended phase space (see [1]); default=None
 	tol : float, optional
 		Tolerance for the implict determination of the symmetric projection. 
 	max_iter : int, optional
@@ -645,6 +637,9 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	k : ndarray, shape (n_points,)
 		Values of k(t) at `t` if `check_energy` is True and if the Hamiltonian
 		system has an explicit time dependence.  
+	projection : str or None
+		Projection method used to move from the extended phase space to the
+		true phase space. None if no projection is used.
 	proj_dist : float
 		Maximum distance between the two copies of the state in the extended 
 		phase space.

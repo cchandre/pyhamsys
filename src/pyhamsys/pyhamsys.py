@@ -147,7 +147,8 @@ class HamSys:
 		projection : str, optional
 			If specified, uses the 'midpoint' or 'symmetric' projection to move from 
 			the extended phase space to the true phase space. None is the default. 
-			Solver must be in METHODS.
+			Solver must be in METHODS. 
+			If omega is None, projection is changed to 'midpoint'.
 		omega : float, optional
 			Frequency parameter for symplectic extension solvers. default=None
 		diss : float, optional
@@ -511,7 +512,6 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 		solver.
 	method : string, optional
         Pre-defined integration methods are listed on https://pypi.org/project/pyhamsys/ 
-
 		'BM4' is the default.
 	step : float
 		Step size.

@@ -109,7 +109,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
   If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase space to the true phase
   space. Possibilities include `symmetric` and `midpoint`. 
    - **omega** (`float`, optional, default=None)  
-  Restraint parameter for symplectic extension solvers as in [3].
+  Restraint parameter for symplectic extension solvers as in [4].
    - **diss** (`float`, optional, default=`0`)   
   Dissipative coefficient for improved accuracy when time steps are too large.
   - **max_iter** (`int`, optional, default=100)
@@ -144,9 +144,10 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 
 ### References:  
   - [1] Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)  
-  - [2] McLachlan, R., *Tuning symplectic integrators is easy and worthwhile*, Commun. Comput. Phys. 31, 987 (2022); [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)  
-  - [3] Tao, M., *Explicit symplectic approximation of nonseparable Hamiltonians: Algorithm and long time performance*, Phys. Rev. E 94, 043303 (2016)
-  - [4] Jayawardana, B., Ohsawa, T. *Semiexplicit symplectic integrators for non-separable Hamiltonian systems*, Math. Comp. 92.339, 251 (2023)
+  - [2] McLachlan, R., *Tuning symplectic integrators is easy and worthwhile*, Commun. Comput. Phys. 31, 987 (2022); [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)
+  - [3] Pihajoki, P., *Explicit methods in extended phase space for inseparable Hamiltonian problems*, Celest. Mech. Dyn. Astron. 121, 211 (2015)
+  - [4] Tao, M., *Explicit symplectic approximation of nonseparable Hamiltonians: Algorithm and long time performance*, Phys. Rev. E 94, 043303 (2016)
+  - [5] Jayawardana, B., Ohsawa, T. *Semiexplicit symplectic integrators for non-separable Hamiltonian systems*, Math. Comp. 92.339, 251 (2023)
 
 ### Example
 

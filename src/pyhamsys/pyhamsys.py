@@ -66,39 +66,38 @@ class Parameters:
 	"""
 	Parameters for the integration of Hamiltonian systems.
 
-	Attributes
-	----------
-	step : float
-		Integration step. Default is infinity (automatic step selection for IVP solvers).
-	solver : str, optional
-		Solver method. Must be in METHODS or IVP_METHODS. Default is 'BM4'.
-	extension : bool, optional
-		Whether to use the extended symplectic extension. Default is False.
-	tol : float, optional
-		For IVP solvers: absolute and relative tolerance.
-		For symplectic split solvers : tolerance for the implict determination 
-		of the symmetric projection (if projection='symmetric').
-		Default is 1e-8.
-	display : bool, optional
-		Whether to display runtime information. Default is True.
-	check_energy : bool, optional
-		If True, adds an auxiliary variable to check energy conservation.
-		Default is False.
-	projection : str, optional
-		The projection is relevant if extension is True.
-		If specified, uses the 'midpoint' or 'symmetric' projection to move from 
-		the extended phase space to the true phase space. Default is None. 
-		Solver must be in METHODS. 
-		If omega is None, projection is changed to 'midpoint'.
-	max_iter : int, optional
-		Maximum number of iterations for the implict determination of the 
-		symmetric projection (if projection='symmetric'). Default is 100.
-	omega : float, optional
-		Restraint parameter for symplectic extension solvers if projection is 
-		None. Default is None.
-	diss : float, optional
-		Dissipation parameter for symplectic extension solvers if projection is 
-		None. Default is None. 
+	Args:
+		step : float
+			Integration step. Default is infinity (automatic step selection for IVP solvers).
+		solver : str, optional
+			Solver method. Must be in METHODS or IVP_METHODS. Default is 'BM4'.
+		extension : bool, optional
+			Whether to use the extended symplectic extension. Default is False.
+		tol : float, optional
+			For IVP solvers: absolute and relative tolerance.
+			For symplectic split solvers : tolerance for the implict determination 
+			of the symmetric projection (if projection='symmetric').
+			Default is 1e-8.
+		display : bool, optional
+			Whether to display runtime information. Default is True.
+		check_energy : bool, optional
+			If True, adds an auxiliary variable to check energy conservation.
+			Default is False.
+		projection : str, optional
+			The projection is relevant if extension is True.
+			If specified, uses the 'midpoint' or 'symmetric' projection to move from 
+			the extended phase space to the true phase space. Default is None. 
+			Solver must be in METHODS. 
+			If omega is None, projection is changed to 'midpoint'.
+		max_iter : int, optional
+			Maximum number of iterations for the implict determination of the 
+			symmetric projection (if projection='symmetric'). Default is 100.
+		omega : float, optional
+			Restraint parameter for symplectic extension solvers if projection is 
+			None. Default is None.
+		diss : float, optional
+			Dissipation parameter for symplectic extension solvers if projection is 
+			None. Default is None. 
 	"""
 	step: float = xp.inf
 	solver: str = 'BM4'
@@ -148,6 +147,25 @@ class HamSys:
 		return sol
 	
 	def compute_vector_field(self, hamiltonian: Callable, output: bool=False, check_energy: bool=False) -> None:
+		"""
+		Derives the vector field (equations of motion) from a symbolic Hamiltonian.
+
+		Args:
+			hamiltonian (Callable): A function that returns a SymPy expression 
+				representing the Hamiltonian H(q, p, t).
+			output (bool): If True, prints the derived symbolic equations to the console.
+			check_energy (bool): If True, derives the time-partial derivative (dH/dt) 
+				for non-autonomous systems to track energy conservation.
+
+		Attributes Assigned:
+			self.hamiltonian: Function for total energy.
+			self.y_dot: Function for the phase-space vector field [dp/dt, -dq/dt].
+			self.k_dot: (Optional) Function for energy rate of change (-dH/dt).
+
+		Raises:
+			ValueError: If `btype` is not 'pq', as coordinate derivation logic 
+				is specific to canonical variables.
+		"""
 		if self.btype != 'pq':
 			raise ValueError("Vector-field computation is only implemented for 'pq' variables.")
 		q = sp.symbols(f'q0:{self._ndof}') if self._ndof > 1 else sp.Symbol('q')
@@ -184,22 +202,20 @@ class HamSys:
 		"""
 		Integrate the Hamiltonian system using either an IVP solver or a symplectic solver.
 
-		Parameters
-		----------
-		z0 : array_like
-			Initial condition(s).
-		t_eval : array_like
-			Times at which to store the solution.
-		params : Parameters
-			Integration parameters. (see Parameters class)
-			The specification of the integration step size is needed for symplectic solvers.
-		command : callable, optional
-			Function called at each step with signature command(t, y).
+		Args:
+			z0 : array_like
+				Initial condition(s).
+			t_eval : array_like
+				Times at which to store the solution.
+			params : Parameters
+				Integration parameters. (see Parameters class)
+				The specification of the integration step size is needed for symplectic solvers.
+			command : callable, optional
+				Function called at each step with signature command(t, y).
 
 		Returns
-		-------
-		sol : object
-			Solution object with attributes depending on solver used.
+			sol : object
+				Solution object with attributes depending on solver used.
 		"""
 		if params.solver not in ALL_METHODS and not is_yoshida_format(params.solver):
 			raise ValueError(f"Solver '{params.solver}' not recognized. "
@@ -426,13 +442,12 @@ class SymplecticIntegrator:
 	"""
     Some explicit symplectic splitting integrators in Python
 
-    Attributes
-    ----------
-    name : str
-        Name of the symplectic integrator. 
-		Pre-defined integration methods are listed in https://pypi.org/project/pyhamsys/ 
-	step : float
-		Step size.
+    Args:
+		name : str
+			Name of the symplectic integrator. 
+			Pre-defined integration methods are listed in https://pypi.org/project/pyhamsys/ 
+		step : float
+			Step size.
     """
 	def __repr__(self) -> str:
 		return f'{self.__class__.__name__}({self.name})'
@@ -520,40 +535,37 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 	y(t0)=y0. The Hamiltonian flow is defined by two functions `chi` and 
 	`chi_star` (see [2]). 
 
-	Parameters
-	----------
-	chi : callable
-		Function of (h, t, y) returning exp(h X_n)...exp(h X_1) y at time t.
-		`chi` must return an array of the same shape as y.
-	chi_star : callable 
-		Function of (h, t, y) returning exp(h X_1)...exp(h X_n) y at time t.
-		`chi_star` must return an array of the same shape as y.
-	t_span : 2-member sequence
-		Interval of integration (t0, tf). The solver starts with t=t0 and
-		integrates until it reaches t=tf. Both t0 and tf must be floats or 
-		values interpretable by the float conversion function.	
-	y0 : array_like
-		Initial state.
-	t_eval : array_like or None, optional
-		Times at which to store the computed solution, must be sorted and, 
-		lie within `t_span`. If None (default), use points selected by the 
-		solver.
-	params : Parameters, optional
-		Parameters for the integration (see Parameters class).
-	command : function of (t, y), optional  
-		Function to be run at each step size.   
+	Args:
+		chi : callable
+			Function of (h, t, y) returning exp(h X_n)...exp(h X_1) y at time t.
+			`chi` must return an array of the same shape as y.
+		chi_star : callable 
+			Function of (h, t, y) returning exp(h X_1)...exp(h X_n) y at time t.
+			`chi_star` must return an array of the same shape as y.
+		t_span : 2-member sequence
+			Interval of integration (t0, tf). The solver starts with t=t0 and
+			integrates until it reaches t=tf. Both t0 and tf must be floats or 
+			values interpretable by the float conversion function.	
+		y0 : array_like
+			Initial state.
+		t_eval : array_like or None, optional
+			Times at which to store the computed solution, must be sorted and, 
+			lie within `t_span`. If None (default), use points selected by the 
+			solver.
+		params : Parameters, optional
+			Parameters for the integration (see Parameters class).
+		command : function of (t, y), optional  
+			Function to be run at each step size.   
 
 	Returns
-	-------
-	Bunch object with the following fields defined:
-	t : ndarray, shape (n_points,)  
-		Time points.
-	y : ndarray, shape (n, n_points)  
-		Values of the solution at `t`.
-	step : step size actually used in the computation
+		Bunch object with the following fields defined:
+		t : ndarray, shape (n_points,)  
+			Time points.
+		y : ndarray, shape (n, n_points)  
+			Values of the solution at `t`.
+		step : step size actually used in the computation
 
 	References
-	----------
 		[1] Hairer, Lubich, Wanner, 2003, Geometric Numerical Integration: 
 		Structure-Preserving Algorithms for Ordinary Differential Equations
 		(Springer)
@@ -616,55 +628,52 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, params: Paramet
 	dk / dt = -dH / dt
 	k(t0)=0
 
-	Parameters
-	----------
-	hs : HamSys
-		Hamiltonian system containing the Hamiltonian vector field. The 
-		attributes `y_dot` (for dy / dt) should be specified. If there is an 
-		explicit time dependence and `check_energy` is True, the attribute 
-		`k_dot` (for dk / dt) should be specified. 
-	t_span : 2-member sequence  
-		Interval of integration (t0, tf). The solver starts with t=t0 and  
-		integrates until it reaches t=tf. Both t0 and tf must be floats or   
-		values interpretable by the float conversion function.	 
-	y0 : array_like, shape (2n,)
-		Initial state y0. If hs is complex y0 = (q0 + i p0) / sqrt(2) where q0
-		are the initial positions and p0 the initial momenta. 
-		Otherwise y0 = (q0, p0). 
-	t_eval : array_like or None, optional
-		Times at which to store the computed solution, must be sorted, and lie 
-		within `t_span`. If None (default), use points selected by the solver.
-	params : Parameters
-		Parameters for the integration (see Parameters class).
-		Step size is required.
-	command : function of (t, y) or None, optional
-		Function to be run at each step size. 
+	Args:
+		hs : HamSys
+			Hamiltonian system containing the Hamiltonian vector field. The 
+			attributes `y_dot` (for dy / dt) should be specified. If there is an 
+			explicit time dependence and `check_energy` is True, the attribute 
+			`k_dot` (for dk / dt) should be specified. 
+		t_span : 2-member sequence  
+			Interval of integration (t0, tf). The solver starts with t=t0 and  
+			integrates until it reaches t=tf. Both t0 and tf must be floats or   
+			values interpretable by the float conversion function.	 
+		y0 : array_like, shape (2n,)
+			Initial state y0. If hs is complex y0 = (q0 + i p0) / sqrt(2) where q0
+			are the initial positions and p0 the initial momenta. 
+			Otherwise y0 = (q0, p0). 
+		t_eval : array_like or None, optional
+			Times at which to store the computed solution, must be sorted, and lie 
+			within `t_span`. If None (default), use points selected by the solver.
+		params : Parameters
+			Parameters for the integration (see Parameters class).
+			Step size is required.
+		command : function of (t, y) or None, optional
+			Function to be run at each step size. 
 
 	Returns
-	-------
-	Bunch object with the following fields defined:
-	t : ndarray, shape (n_points,)  
-		Time points.
-	y : ndarray, shape (2n, n_points) real array or  (n, n_points) complex array
-		If hs real, y(t) = (q(t), p(t)) at `t`. 
-		If hs complex, y(t) = (q(t) + i p(t)) / sqrt(2)
-	k : ndarray, shape (n_points,)
-		Values of k(t) at `t` if `check_energy` is True and if the Hamiltonian
-		system has an explicit time dependence.  
-	projection : str or None
-		Projection method used to move from the extended phase space to the
-		true phase space. None if no projection is used.
-	proj_dist : float
-		Maximum distance between the two copies of the state in the extended 
-		phase space.
-	err : float
-		Error in the computation of the total energy, computed only if
-		`check_energy` is True. 
-	step : float
-		Step size used in the computation.
+		Bunch object with the following fields defined:
+		t : ndarray, shape (n_points,)  
+			Time points.
+		y : ndarray, shape (2n, n_points) real array or  (n, n_points) complex array
+			If hs real, y(t) = (q(t), p(t)) at `t`. 
+			If hs complex, y(t) = (q(t) + i p(t)) / sqrt(2)
+		k : ndarray, shape (n_points,)
+			Values of k(t) at `t` if `check_energy` is True and if the Hamiltonian
+			system has an explicit time dependence.  
+		projection : str or None
+			Projection method used to move from the extended phase space to the
+			true phase space. None if no projection is used.
+		proj_dist : float
+			Maximum distance between the two copies of the state in the extended 
+			phase space.
+		err : float
+			Error in the computation of the total energy, computed only if
+			`check_energy` is True. 
+		step : float
+			Step size used in the computation.
 
 	References
-	----------
 		[1] Pihajoki, P., 2015, "Explicit methods in extended phase space for 
 		inseparable Hamiltonian problems", Celest. Mech. Dyn. Astron. 121, 211
 		[2] Tao, M., 2016, "Explicit symplectic approximation of nonseparable 

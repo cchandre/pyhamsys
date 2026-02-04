@@ -43,6 +43,7 @@ import re
 from datetime import datetime
 from dataclasses import dataclass, asdict
 import logging
+from pathlib import Path
 
 METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL', 'PEFRL', 'VEFRL', 'BM4', 'BM6', 'RKN4b', 'RKN6b', 'RKN6a', 'ABA104', 'ABA864', 'ABA1064']
 
@@ -170,8 +171,8 @@ class HamSys:
 
 	def _compute_energy(self, sol: OdeSolution, maxerror: bool=True) -> xp.ndarray:
 		val_h = xp.empty_like(sol.t)
-		for _, t in enumerate(sol.t):
-			val_h[_] = self.hamiltonian(t, sol.y[:, _])
+		v_ham = xp.vectorize(self.hamiltonian)
+		val_h = v_ham(sol.t, sol.y)
 		if self._time_dependent:
 			val_h += sol.k
 		return xp.max(xp.abs(val_h - val_h[0])) if maxerror else val_h
@@ -230,12 +231,11 @@ class HamSys:
 			if not hasattr(self, 'hamiltonian'):
 				logger.warning("In order to check energy, the attribute 'hamiltonian' must be provided.")
 		sol.cpu_time = time.process_time() - start
-		if params.display:
-			logger.info(f"Computation finished in {int(sol.cpu_time)} seconds")
-			if getattr(sol, 'err', None) is not None:
-				logger.info(f"with error in energy = {sol.err:.2e}")
-			if hasattr(sol, 'proj_dist'): 
-				logger.info(f"with projection ({sol.projection}) distance = {sol.proj_dist:.2e}")
+		logger.info(f"Computation finished in {int(sol.cpu_time)} seconds")
+		if getattr(sol, 'err', None) is not None:
+			logger.info(f"with error in energy = {sol.err:.2e}")
+		if hasattr(sol, 'proj_dist'): 
+			logger.info(f"with projection ({sol.projection}) distance = {sol.proj_dist:.2e}")
 		return sol
 	
 	def compute_lyapunov(self, tf: float, z0: xp.ndarray, reortho_dt: float, params: Parameters) -> xp.ndarray:
@@ -257,24 +257,23 @@ class HamSys:
 				Q[i] = q
 			t += reortho_dt
 			z = xp.concatenate((z, xp.moveaxis(Q, 0, -1)), axis=None)
-		if params.display:
-			logger.info(f"Computation finished in {int(time.time() - start)} seconds")
+		logger.info(f"Computation finished in {int(time.time() - start)} seconds")
 		return xp.sort(lyap_sum / tf)
 	
-	def save_data(self, *data, params: Parameters=None, filename: str='', author: str='', display: bool=True) -> None:
-		params = asdict(params) if params else {}
-		for i, d in enumerate(data):
-			params[f'data{i}'] = d
-		params['date'] = datetime.now().strftime("%B %d, %Y")
-		params['author'] = author if author else 'cristel.chandre@cnrs.fr'
+	def save_data(self, *data, params: Optional[Parameters]=None, filename: str='hamsys', author: str='') -> None:
+		path = Path(filename)
 		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-		if not filename.endswith('.mat'):
-			filename = f"{filename}_{timestamp}.mat"
-		else:
-			filename = filename.replace('.mat', f'_{timestamp}.mat')
-		savemat(filename, params)
-		if display:
-			logger.info(f"Results saved in {filename}")
+		new_filename = f"{path.stem}_{timestamp}.mat"
+		output = {
+        	'metadata': {
+				'author': author if author else 'cristel.chandre@cnrs.fr',
+				'date': datetime.now().strftime("%B %d, %Y"),
+				'ndof': self._ndof,
+				'btype': self.btype},
+			'params': asdict(params) if params else {},
+			'results': {f'data_{i}': d for i, d in enumerate(data)}}
+		savemat(new_filename, output)
+		logger.info(f"Results saved in {new_filename}")
 
 def adjust_step(t_span: tuple, step: float, t_eval: xp.ndarray=None) -> Tuple[int, float]:
 	if not (xp.isfinite(step) and step >0):

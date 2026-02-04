@@ -79,14 +79,6 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 	
 	The function `compute_vector_field` determines the HamSys function attributes `y_dot` and `k_dot` to be used in `solve_ivp_sympext`. The derivatives are computed symbolically using SymPy.
 
-- `compute_energy` : callable   
-  	A function of `sol` &ndash;a solution provided by `solve_ivp_sympext`&ndash; and a boolean `maxerror`. If `maxerror`is `True` the function `compute_energy` returns the maximum error in total energy; otherwise, it returns all the values of the total energy. 
-	#### Parameters
-	- `sol` : OdeSolution  
-   		Solution provided by `solve_ivp_sympext`. 
- 	- `maxerror` : bool, optional  
-    		Default is True.
-
 - `integrate` : callable   
     Integrate the Hamiltonian system using either a pre-defined **symplectic solver** (see above for a complete list) or a **standard IVP solver** ('RK23', 'RK45', 'DOP853', 'Radau', 'BDF', 'LSODA'). Supports optional *symplectic extension* and *energy conservation checks*.
 

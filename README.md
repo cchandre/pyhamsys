@@ -92,8 +92,9 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 	Void function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, modify global or mutable variables, or register specific events).
 
    #### Parameters
+  The integration parameters are defined through an element **params** of the dataclass `Parameters` of `pyHamSys`. See examples for its usage. Below are all the possible parameters to tune.   
   - **step** (`float`)  
-  Fixed integration time step (used in symplectic solvers and to bound steps in IVP solvers).
+  Fixed integration step size used in symplectic solvers, and maximium step size in variable step size methods for IVP solvers.   
   - **solver** (`str`, optional, default=`"BM4"`)  
   Solver method. Must be a member of `METHODS` (symplectic solvers), or  `IVP_METHODS` (classical IVP solvers).
   - **extension** (`bool`, optional, default=`False`)  

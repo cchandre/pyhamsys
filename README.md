@@ -1,5 +1,5 @@
 # pyHamSys
-pyHamSys (short for Python Hamiltonian Systems) is a Python library for scientific computing involving Hamiltonian systems. It provides tools to model, analyze, and simulate Hamiltonian systems. In particular, the library offers a streamlined and user-friendly environment for implementing and running symplectic-split integrators. These specialized numerical methods are designed to preserve the geometric structure of Hamiltonian systems, ensuring accurate and stable simulations of their dynamics over long time periods. 
+pyHamSys (short for Python Hamiltonian Systems) is an open-source Python library for scientific computing involving Hamiltonian systems. It provides tools to model, analyze, and simulate Hamiltonian systems. In particular, the library offers a streamlined and user-friendly environment for implementing and running symplectic-split integrators. These specialized numerical methods are designed to preserve the geometric structure of Hamiltonian systems, ensuring accurate and stable simulations of their dynamics over long time periods. 
 
 ![PyPI](https://img.shields.io/pypi/v/pyhamsys)
 ![License](https://img.shields.io/badge/license-BSD-lightgray)

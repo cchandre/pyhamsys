@@ -58,6 +58,7 @@ class OdeSolution(OptimizeResult):
 class Parameters:
 	"""
 	Parameters for the integration of Hamiltonian systems.
+
 	Attributes
 	----------
 	step : float
@@ -188,7 +189,7 @@ class HamSys:
 			Integration parameters. (see Parameters class)
 			The specification of the integration step is needed.
 		command : callable, optional
-			Function called at each time step with signature command(t, y).
+			Function called at each step with signature command(t, y).
 
 		Returns
 		-------
@@ -659,10 +660,12 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, params: Paramet
 
 	References
 	----------
-		[1] Tao, M., 2016, "Explicit symplectic approximation of nonseparable 
+		[1] Pihajoki, P., 2015, "Explicit methods in extended phase space for 
+		inseparable Hamiltonian problems", Celest. Mech. Dyn. Astron. 121, 211
+		[2] Tao, M., 2016, "Explicit symplectic approximation of nonseparable 
 		Hamiltonians: Algorithm and long time performance", 
 		Phys. Rev. E 94, 043303
-		[2] Jayawardana, B., Ohsawa, T. 2023, “Semiexplicit symplectic 
+		[3] Jayawardana, B., Ohsawa, T., 2023, “Semiexplicit symplectic 
 		integrators for non-separable Hamiltonian systems”, Mathematics of 
 		Computation 92.339, 251
 	"""

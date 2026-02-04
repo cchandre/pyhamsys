@@ -35,7 +35,7 @@ N = 50  							# number of trajectories
 nf = 1000							# number of points on the Poincaré section per trajectory
 
 params = Parameters(				# integration parameters
-	step = 2 * np.pi / 50,			# integration timestep 
+	step = 2 * np.pi / 50,			# integration step size
 	extension = True,				# use extended phase space integration
 	check_energy = True,			# check energy conservation
 	projection = 'symmetric'	  	# projection method used for extended phase space split integration

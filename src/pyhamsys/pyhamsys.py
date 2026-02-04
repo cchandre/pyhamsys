@@ -61,7 +61,7 @@ class Parameters:
 	Attributes
 	----------
 	step : float
-		Integration step.
+		Integration step. Default is infinity (automatic step selection for IVP solvers).
 	solver : str, optional
 		Solver method. Must be in METHODS or IVP_METHODS. Default is 'BM4'.
 	extension : bool, optional
@@ -214,9 +214,9 @@ class HamSys:
 			sol = self.rectify_sol(sol, check_energy=params.check_energy)
 			sol.step = params.step
 		elif params.extension:
-			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=params.step, t_eval=t_eval, method=params.solver, check_energy=params.check_energy, omega=params.omega, diss=params.diss, projection=params.projection, tol=params.tol, max_iter=params.max_iter, command=command)
+			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, params=params, command=command)
 		else:
-			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, step=params.step, t_eval=t_eval, method=params.solver, command=command)
+			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, params=params, command=command)
 		if params.check_energy:
 			try: 
 				sol.err = self.compute_energy(sol)
@@ -244,7 +244,7 @@ class HamSys:
 		lyap_sum = xp.zeros((2, n), dtype=xp.float64)
 		t, z = 0, xp.concatenate((z0, xp.ones(n), xp.zeros(n), xp.zeros(n), xp.ones(n)), axis=None)
 		for _ in range(int(tf / reortho_dt)):
-			sol = solve_ivp(self.y_dot_lyap, (t, t + reortho_dt), z, method=params.solver, t_eval=[t + reortho_dt], atol=params.tol, rtol=params.tol)
+			sol = solve_ivp(self.y_dot_lyap, (t, t + reortho_dt), z, t_eval=[t + reortho_dt], method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step)
 			z, Q = sol.y[:2 * n, -1], xp.moveaxis(sol.y[2 * n:, -1].reshape((2, 2, n)), -1, 0)
 			for i in range(n):
 				q, r = xp.linalg.qr(Q[i])

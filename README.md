@@ -162,14 +162,15 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
-from pyhamsys import HamSys
+from pyhamsys import HamSys, Parameters
 
 hs = HamSys()
 hamiltonian = lambda q, p, t: p**2 / 2 - sp.cos(q)
 hs.compute_vector_field(hamiltonian, output=True)
 y0 = np.asarray([3, 0])
 t_eval = np.linspace(0, 20, 2**9)
-sol = hs.integrate(y0, t_eval, timestep=1e-1, check_energy=True, extension=True)
+params = Parameters(step=1e-1, extension=True, check_energy=True)
+sol = hs.integrate(y0, t_eval, params=params)
 plt.plot(sol.y[0], sol.y[1])
 plt.show()
 ```

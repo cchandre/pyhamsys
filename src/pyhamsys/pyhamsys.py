@@ -33,7 +33,7 @@ from scipy.optimize import curve_fit, root
 from scipy.stats import linregress
 from sklearn.metrics import r2_score
 from scipy.fft import rfft, irfft, rfftfreq
-from typing import Callable, Union, Tuple
+from typing import Callable, Union, Tuple, Optional
 from scipy.optimize import OptimizeResult
 from scipy.io import savemat
 import sympy as sp
@@ -42,11 +42,17 @@ import time
 import re
 from datetime import datetime
 from dataclasses import dataclass, asdict
+import logging
 
 METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL', 'PEFRL', 'VEFRL', 'BM4', 'BM6', 'RKN4b', 'RKN6b', 'RKN6a', 'ABA104', 'ABA864', 'ABA1064']
 
 IVP_METHODS = list(IVP_METHODS.keys())
 ALL_METHODS = METHODS + IVP_METHODS
+
+GRAY = '\033[90m'
+RESET = '\033[00m'
+LOG_FORMAT = f"{GRAY}        %(message)s{RESET}" 
+logger = logging.getLogger(__name__) 
 
 def is_yoshida_format(name: str) -> bool:
     return bool(re.match(r'^Yo\d+$', name))
@@ -73,7 +79,7 @@ class Parameters:
 		of the symmetric projection (if projection='symmetric').
 		Default is 1e-8.
 	display : bool, optional
-		Whether to print runtime information. Default is True.
+		Whether to display runtime information. Default is True.
 	check_energy : bool, optional
 		If True, adds an auxiliary variable to check energy conservation.
 		Default is False.
@@ -104,24 +110,21 @@ class Parameters:
 	omega: float = None
 	diss: float = None
 
+	def __post_init__(self):
+		logger.setLevel(logging.INFO if self.display else logging.WARNING)
+
 class HamSys:
-	def __init__(self, ndof: float=1, btype: str='pq', y_dot: Callable=None,\
-			   k_dot: Callable=None, hamiltonian: Callable=None, coupling: Callable=None) -> None:
-		if str(ndof) != str(int(ndof)) + '.5' * bool(str(ndof).count('.5')):
+	def __init__(self, ndof: float=1, btype: str='pq', **kwargs: Optional[Callable]) -> None:
+		if (ndof * 2) % 1 != 0:
 			raise ValueError('Number of degrees of freedom should be an integer or half an integer.')
 		self._ndof = int(ndof)
-		self._time_dependent = bool(str(ndof).count('.5'))
+		self._time_dependent = (ndof % 1 == 0.5)
 		self.btype = btype
 		self._ysplit = 4 if btype=='pq' else 2
-		self._complex = True if btype=='psi' else False
-		if y_dot is not None:
-			self.y_dot = y_dot
-		if k_dot is not None:
-			self.k_dot = k_dot
-		if hamiltonian is not None:
-			self.hamiltonian = hamiltonian
-		if coupling is not None:
-			self.coupling = coupling
+		self._complex = (btype == 'psi')
+		for key, value in kwargs.items():
+			if value is not None:
+				setattr(self, key, value)
 
 	def _split(self, y: xp.ndarray, n: int, check_energy: bool=False):
 		ys = xp.split(y[:-1] if check_energy else y, n)
@@ -133,38 +136,39 @@ class HamSys:
 		q, p = xp.split(y, 2)
 		return xp.asarray(eqn(q, p, t)).flatten()
 	
-	def rectify_sol(self, sol: OdeSolution, check_energy: bool=False) -> OdeSolution:
+	def _rectify_sol(self, sol: OdeSolution, check_energy: bool=False) -> OdeSolution:
 		if not check_energy:
 			return sol
 		if self._time_dependent:
 			sol.y, sol.k = sol.y[:-1, :], sol.y[-1, :]
 		if not hasattr(self, 'hamiltonian'):
 			raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
-		sol.err = self.compute_energy(sol)
+		sol.err = self._compute_energy(sol)
 		return sol
 	
 	def compute_vector_field(self, hamiltonian: Callable, output: bool=False, check_energy: bool=False) -> None:
 		if self.btype != 'pq':
-			raise ValueError("Computation of vector fields not implemented for these variables")
-		q = sp.symbols('q0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('q')
-		p = sp.symbols('p0:%d'%self._ndof) if self._ndof>=2 else sp.Symbol('p')
+			raise ValueError("Vector-field computation is only implemented for 'pq' variables.")
+		q = sp.symbols(f'q0:{self._ndof}') if self._ndof > 1 else sp.Symbol('q')
+		p = sp.symbols(f'p0:{self._ndof}') if self._ndof > 1 else sp.Symbol('p')
 		t = sp.Symbol('t')
-		energy = sp.lambdify([q, p, t], hamiltonian(q, p, t))
-		self.hamiltonian = partial(self._create_function, eqn=energy)
-		eqn = sp.simplify(sp.derive_by_array(hamiltonian(q, p, t), [q, p]).doit())
-		eqn = sp.flatten([eqn[1], -eqn[0]])
+		h_expr = hamiltonian(q, p, t)
+		grad_q = sp.derive_by_array(h_expr, q)
+		grad_p = sp.derive_by_array(h_expr, p)
+		eqn = [*grad_p, *[-expr for expr in grad_q]]
 		if output:
-			print('y_dot : ', eqn)
-		eqn = sp.lambdify([q, p, t], eqn)
-		self.y_dot = partial(self._create_function, eqn=eqn)
+			print(f'y_dot : {eqn}')
+		for attr, expr in [('hamiltonian', h_expr), ('y_dot', eqn)]:
+			func = sp.lambdify([q, p, t], expr)
+			setattr(self, attr, partial(self._create_function, eqn=func))
 		if self._time_dependent and check_energy:
-			eqn_t = -sp.simplify(sp.diff(hamiltonian(q, p, t), t))
-			if output and eqn_t!=0:
-				print('k_dot : ', eqn_t)
-			eqn_t = sp.lambdify([q, p, t], eqn_t)
-			self.k_dot = partial(self._create_function, eqn=eqn_t)
+			eqn_t = -sp.diff(h_expr, t)
+			if output and eqn_t != 0:
+				print(f'k_dot : {eqn_t}')
+			func_t = sp.lambdify([q, p, t], eqn_t)
+			self.k_dot = partial(self._create_function, eqn=func_t)
 
-	def compute_energy(self, sol: OdeSolution, maxerror: bool=True) -> xp.ndarray:
+	def _compute_energy(self, sol: OdeSolution, maxerror: bool=True) -> xp.ndarray:
 		val_h = xp.empty_like(sol.t)
 		for _, t in enumerate(sol.t):
 			val_h[_] = self.hamiltonian(t, sol.y[:, _])
@@ -177,7 +181,7 @@ class HamSys:
 	
 	def integrate(self, z0: xp.ndarray, t_eval, params: Parameters, command: Callable=None) -> OdeSolution:
 		"""
-		Integrate the system using either an IVP solver or a symplectic solver.
+		Integrate the Hamiltonian system using either an IVP solver or a symplectic solver.
 
 		Parameters
 		----------
@@ -187,7 +191,7 @@ class HamSys:
 			Times at which to store the solution.
 		params : Parameters
 			Integration parameters. (see Parameters class)
-			The specification of the integration step is needed.
+			The specification of the integration step size is needed for symplectic solvers.
 		command : callable, optional
 			Function called at each step with signature command(t, y).
 
@@ -212,7 +216,7 @@ class HamSys:
 		start = time.process_time()
 		if params.solver in IVP_METHODS:
 			sol = solve_ivp(self._y_dot_ext if params.check_energy else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step)
-			sol = self.rectify_sol(sol, check_energy=params.check_energy)
+			sol = self._rectify_sol(sol, check_energy=params.check_energy)
 			sol.step = params.step
 		elif params.extension:
 			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, params=params, command=command)
@@ -220,18 +224,18 @@ class HamSys:
 			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, params=params, command=command)
 		if params.check_energy:
 			try: 
-				sol.err = self.compute_energy(sol)
+				sol.err = self._compute_energy(sol)
 			except:
 				sol.err = None
 			if not hasattr(self, 'hamiltonian'):
-				print(" Warning: In order to check energy, the attribute 'hamiltonian' must be provided.")
+				logger.warning("In order to check energy, the attribute 'hamiltonian' must be provided.")
 		sol.cpu_time = time.process_time() - start
 		if params.display:
-			print(f'\033[90m        Computation finished in {int(sol.cpu_time)} seconds \033[00m')
-			if hasattr(sol, 'err') and sol.err is not None:
-				print(f'\033[90m           with error in energy = {sol.err:.2e} \033[00m')
-			if hasattr(sol, 'proj_dist'):
-				print(f'\033[90m           with projection ({sol.projection}) distance = {sol.proj_dist:.2e}\033[00m')
+			logger.info(f"Computation finished in {int(sol.cpu_time)} seconds")
+			if getattr(sol, 'err', None) is not None:
+				logger.info(f"with error in energy = {sol.err:.2e}")
+			if hasattr(sol, 'proj_dist'): 
+				logger.info(f"with projection ({sol.projection}) distance = {sol.proj_dist:.2e}")
 		return sol
 	
 	def compute_lyapunov(self, tf: float, z0: xp.ndarray, reortho_dt: float, params: Parameters) -> xp.ndarray:
@@ -254,7 +258,7 @@ class HamSys:
 			t += reortho_dt
 			z = xp.concatenate((z, xp.moveaxis(Q, 0, -1)), axis=None)
 		if params.display:
-			print(f'\033[90m        Computation finished in {int(time.time() - start)} seconds \033[00m')
+			logger.info(f"Computation finished in {int(time.time() - start)} seconds")
 		return xp.sort(lyap_sum / tf)
 	
 	def save_data(self, *data, params: Parameters=None, filename: str='', author: str='', display: bool=True) -> None:
@@ -270,9 +274,9 @@ class HamSys:
 			filename = filename.replace('.mat', f'_{timestamp}.mat')
 		savemat(filename, params)
 		if display:
-			print(f"\033[90m        Results saved in {filename}\033[00m")
+			logger.info(f"Results saved in {filename}")
 
-def adjust_step(t_span: tuple, step: float, t_eval: xp.ndarray=None) -> float:
+def adjust_step(t_span: tuple, step: float, t_eval: xp.ndarray=None) -> Tuple[int, float]:
 	if not (xp.isfinite(step) and step >0):
 		raise ValueError("Step must be a finite, positive number.")
 	t0, tf = map(float, t_span)
@@ -291,7 +295,8 @@ def adjust_step(t_span: tuple, step: float, t_eval: xp.ndarray=None) -> float:
 	nstep = (int(xp.ceil((tf - t0) / step)) // n_eval) * n_eval + n_eval
 	return nstep, (tf - t0) / nstep
 
-def chi_potential(h, t, x, p, k=None, dvdx=None, dvdt=None):
+def chi_potential(h: float, t: float, x: xp.ndarray, p: xp.ndarray, 
+				  k: xp.ndarray=None, dvdx: Callable=None, dvdt: Callable=None):
 	if k is not None and dvdt is None:
 		raise ValueError("If k is provided, dvdt must also be provided.")
 	if dvdx is None:
@@ -301,7 +306,8 @@ def chi_potential(h, t, x, p, k=None, dvdx=None, dvdt=None):
 		return t + h, x + h * p , p
 	return t + h, x + h * p , p, k - h * dvdt(t, x)
 
-def chi_potential_star(h, t, x, p, k=None, dvdx=None, dvdt=None):
+def chi_potential_star(h: float, t: float, x: xp.ndarray, p: xp.ndarray, 
+					   k: xp.ndarray=None, dvdx: Callable=None, dvdt: Callable=None):
 	if k is not None and dvdt is None:
 		raise ValueError("If k is provided, dvdt must also be provided.")
 	if dvdx is None:
@@ -746,7 +752,7 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, params: Paramet
 		y1, y2 = xp.split(integrator._integrate_onestep(t, y + mu_ext, _chi_ext, _chi_ext_star)[1], 2)
 		return  y1 - y2 + 2 * mu
 	
-	def _fast_mu(func, tol: float, alpha:float) -> xp.ndarray:
+	def _fast_mu(func: Callable, tol: float, alpha:float) -> xp.ndarray:
 		_mu = xp.zeros_like(y0)
 		count = 0
 		while count < params.max_iter:
@@ -825,5 +831,5 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, params: Paramet
 	if check_energy_:
 		sol.k = y_[-1] / 2
 	if params.check_energy:
-		sol.err = hs.compute_energy(sol)
+		sol.err = hs._compute_energy(sol)
 	return sol

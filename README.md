@@ -63,7 +63,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
 - `hamiltonian` : callable, optional   
 	A function of (*t*, *y*) which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.
-- `coupling` (for exended phases space with the restraint as in [3]) : callable, optional
+- `coupling` (for exended phases space with the restraint as in [3]) : callable, optional   
   	A function of (*h*, *y*, &omega;) which advances *y* from time *t* to *t*+*h* for the coupling Hamiltonian $\omega (y - \bar{y})^2/2$. This function is already computed for the types btype='pq' and 'psi'. For any other type, it should be provided. 
 
 ### Functions

@@ -61,7 +61,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
   	A function of (*t*, *y*) which returns {*y*,*H*(*t*,*y*)} where *y* is the state vector and *H* is the Hamiltonian. In (real) canonical coordinates where *y* = (*q*, *p*), this function returns (&part;*H*/&part;*p*, -&part;*H*/&part;*q*). In complex coordinate &psi;, this function returns -i &part;*H*/&part;&psi;<sup>*</sup>. For practical implementation, the state vector *y* should be represented as a one-dimensional array with a shape of (*n*,), where *n* denotes the total number of dynamical variables in the system. This ensures compatibility with numerical solvers and facilitates efficient computation of the system's evolution.  
 - `k_dot` : callable, optional   
 	A function of (*t*, *y*) which returns {*k*,*H*(*t*,*y*)} = -&part;*H*/&part;*t* where *k* is canonically conjugate to *t* and *H* is the Hamiltonian.
-- `chi` and `chi_star` : callable, optional
+- `chi` and `chi_star` : callable, optional   
     Functions of (*h*, *t*, *y*) which returns, respectively, exp(*h* X<sub>N</sub>)...exp(*h* X<sub>1</sub>)*y* and exp(*h* X<sub>1</sub>)...exp(*h* X<sub>N</sub>)*y* at time *t* for its use in symplectic-split integration (without phase space extension). See [2] for more details.     
 - `hamiltonian` : callable, optional   
 	A function of (*t*, *y*) which returns the Hamiltonian *H*(*t*,*y*) where *y* is the state vector.

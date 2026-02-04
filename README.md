@@ -90,21 +90,29 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 - `integrate` : callable   
     Integrate the Hamiltonian system using either a pre-defined **symplectic solver** (see above for a complete list) or a **standard IVP solver** ('RK23', 'RK45', 'DOP853', 'Radau', 'BDF', 'LSODA'). Supports optional *symplectic extension* and *energy conservation checks*.
 
-   #### Parameters
    - **z0** (`array_like`)  
   Initial condition(s) of the system.
    - **t_eval** (`array_like`)  
   Times at which the solution is evaluated and stored.
-  - **check_energy** (`bool`, optional, default=`False`)  
-  If `True`, appends an auxiliary variable to track the Hamiltonian. Requires `hamiltonian` and `k_dot` to be defined.
+   - **params** (`Parameters`)   
+  Parameters for the integration of the Hamiltonian system. Step must be provided. 
+   - **command** (void function of (*t*, *y*), optional)    
+	Void function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, modify global or mutable variables, or register specific events).
+
+   #### Parameters
+  - **step** (`float`)  
+  Fixed integration time step (used in symplectic solvers and to bound steps in IVP solvers).
+  - **solver** (`str`, optional, default=`"BM4"`)  
+  Solver method. Must be a member of `METHODS` (symplectic solvers), or  `IVP_METHODS` (classical IVP solvers).
   - **extension** (`bool`, optional, default=`False`)  
   If `True`, use a symplectic extension method in phase space.
-   - **display** (`bool`, optional, default=`True`)  
+  - **tol** (`float`, optional, default=`1e-8`)  
+  Absolute and relative tolerance for IVP solvers.
+  Also, tolerance for the implict determination of the symmetric projection.
+  - **display** (`bool`, optional, default=`True`)  
   If `True`, prints runtime information such as CPU time, error in energy, and copy distance (if available).      
-   - **solver** (`str`, optional, default=`"BM4"`)  
-  Solver method. Must be a member of `METHODS` (symplectic solvers), or  `IVP_METHODS` (classical IVP solvers).
-   - **timestep** (`float`)  
-  Fixed integration time step (used in symplectic solvers and to bound steps in IVP solvers).
+  - **check_energy** (`bool`, optional, default=`False`)  
+  If `True`, appends an auxiliary variable to track the Hamiltonian. Requires `hamiltonian` and `k_dot` to be defined.
   - **projection** (`str`, optional, default=None)
   If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase space to the true phase
   space. Possibilities include `symmetric` and `midpoint`. 
@@ -112,13 +120,9 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
   Restraint parameter for symplectic extension solvers as in [3].
    - **diss** (`float`, optional, default=`0`)   
   Dissipative coefficient for improved accuracy when time steps are too large.
-   - **tol** (`float`, optional, default=`1e-8`)  
-  Absolute and relative tolerance for IVP solvers.
-  Also, tolerance for the implict determination of the symmetric projection.
   - **max_iter** (`int`, optional, default=100)
   Maximum number of iterations for the implict determination of the symmetric projection.
-  - **command** (void function of (*t*, *y*), optional)    
-	Void function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, modify global or mutable variables, or register specific events).
+  
   
     #### Returns
    - **sol** (`object`)  
@@ -133,73 +137,16 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 
     #### Notes
     - **Symplectic solvers (`METHODS`)**  
-    Require `chi` and `chi_star` to be defined in the class. Preserves geometric properties of Hamiltonian flows.  
+    If `extension=False`, requires `chi` and `chi_star` to be defined. If `extension=True`, requires `y_dot` to be defined.   
+    Preserves geometric properties of Hamiltonian flows.  
     - **IVP solvers (`IVP_METHODS`)**  
-    Require `y_dot` (and `k_dot` if `check_energy`=True). Allow adaptive step sizes bounded by `timestep`.  
+    Require `y_dot` (and `k_dot` if `check_energy`=True). Allow adaptive step sizes bounded by `step`.  
     - **Energy checking**  
     When `check_energy`=True, an auxiliary variable is added and the error in Hamiltonian is computed relative to its initial value. 
 
----
-## solve_ivp_symp and solve_ivp_sympext
-
-The functions `solve_ivp_symp` and `solve_ivp_sympext` solve an initial value problem for a Hamiltonian system using an element of the class SymplecticIntegrator, an explicit symplectic splitting scheme (see [1]). These functions numerically integrate a system of ordinary differential equations given an initial value:  
-	&nbsp; d*y* / d*t* = {*y*, *H*(*t*, *y*)}  
-	&nbsp; *y*(*t*<sub>0</sub>) = *y*<sub>0</sub>  
-Here *t* is a 1-D independent variable (time), *y*(*t*) is an N-D vector-valued function (state). A Hamiltonian *H*(*t*, *y*) and a Poisson bracket {. , .} determine the differential equations. The goal is to find *y*(*t*) approximately satisfying the differential equations, given an initial value *y*(*t*<sub>0</sub>) = *y*<sub>0</sub>. 
-
-The function `solve_ivp_symp` solves an initial value problem using an explicit symplectic integration. The Hamiltonian flow is defined by two functions `chi` and `chi_star` of (*h*, *t*, *y*) (see [2]). This function works for any set of coordinates, canonical or non-canonical, provided that the splitting *H*=&sum;<sub>*k*</sub> *A*<sub>*k*</sub> leads to facilitated expressions for the operators exp(*h* X<sub>*k*</sub>) where X<sub>*k*</sub> = {*A*<sub>*k*</sub> , &centerdot;}.
-
-The function `solve_ivp_sympext` solves an initial value problem using an explicit symplectic approximation obtained by an extension in phase space (see [3]). This symplectic approximation works for canonical Poisson brackets, and the state vector should be of the form *y* = (*q*, *p*). 
-
-### Parameters:  
-
-  - `chi` (for `solve_ivp_symp`) : callable  
-	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>*n*</sub>)...exp(*h* X<sub>1</sub>) *y* at time *t*. If the selected integrator is not all purpose, refer to the list above for the specific ordering of the operators. The operator X<sub>*k*</sub> is the Liouville operator associated with the function *A*<sub>*k*</sub>, i.e., for Hamiltonian flows X<sub>*k*</sub> = {*A*<sub>*k*</sub> , &centerdot;} where {&centerdot; , &centerdot;} is the Poisson bracket.
-	`chi` must return an array of the same shape as `y`.
-  - `chi_star` (for `solve_ivp_symp`) : callable   
-	Function of (*h*, *t*, *y*) returning exp(*h* X<sub>1</sub>)...exp(*h* X<sub>*n*</sub>) *y* at time *t*.
-	`chi_star` must return an array of the same shape as `y`.
-  - `hs` (for `solve_ivp_sympext`) : element of class HamSys  
-	The attribute `y_dot` of `hs` should be defined. If `check_energy` is True, the attribute `hamiltonian`  and if the Hamiltonian system has an explicit time dependence (i.e., the parameter `ndof` of `hs`  is a half-integer), the attribute `k_dot` of `hs` should be specified. 
-  - `t_span` : 2-member sequence  
-	Interval of integration (*t*<sub>0</sub>, *t*<sub>f</sub>). The solver starts with *t*=*t*<sub>0</sub> and integrates until it reaches *t*=*t*<sub>f</sub>. Both *t*<sub>0</sub> and *t*<sub>f</sub> must be floats or values interpretable by the float conversion function.	
-  - `y0` : array_like  
-	Initial state. For `solve_ivp_sympext`, the vector `y0` should be with shape (n,).
-  - `step` : float   
-	Step size.
-  - `t_eval` : array_like or None, optional  
-	Times at which to store the computed solution, must be sorted, and lie within `t_span`. If None (default), use points selected by the solver.
-  - `method` : string, optional  
- 	Integration methods are listed on [pyhamsys](https://pypi.org/project/pyhamsys/). Default is 'BM4'.
-  - `omega` (for `solve_ivp_sympext`) : float, optional  
-   	Coupling parameter in the extended phase space (see [3]). Default is None.
-  - `projection` (for `solve_ivp_sympext`) : str, optional
-	If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase space to the true phase space. None is the default.
-  - `tol` (for `solve_ivp_sympext`) : float, optional
-	Tolerance for the implict determination of the symmetric projection. 
-  - `max_iter` (for `solve_ivp_sympext`) : int, optional
-	Maximum number of iterations for the implict determination of the symmetric projection.
-  - `command` : void function of (*t*, *y*), optional    
-	Void function to be run at each step size (e.g., plotting an observable associated with the state vector *y*, modify global or mutable variables, or register specific events).
-  - `check_energy` (for `solve_ivp_sympext`) : bool, optional  
-	If True, the attribute `hamiltonian` of `hs` should be defined. Default is False. 
-
-### Returns:  
-&nbsp; Bunch object with the following fields defined:
-   - `t` : ndarray, shape (n_points,)  
-	Time points.
-   - `y` : ndarray, shape y0.shape + (n_points,)  
-	Values of the solution `y` at `t`.
-   - `k` (for `solve_ivp_sympext`) : ndarray, shape (n_points,)   
-     	Values of `k` at `t`. Only for `solve_ivp_sympext` and if `check_energy` is True for a Hamiltonian system with an explicit time dependence (i.e., the parameter `ndof` of `hs`  is half an integer).
-   - `proj_dist` (for `solve_ivp_sympext`) : float   
-        Maximum distance between the two copies of the state in the extended phase space.   
-   - `err` (for `solve_ivp_sympext`) : float   
-     	Error in the computation of the total energy. Only for `solve_ivp_sympext` and if `check_energy` is True.
-   - `step` : step size used in the computation.
 
 ### Remarks:   
-  - Use `solve_ivp_symp` if the Hamiltonian can be split and if each partial operator exp(*h* X<sub>*k*</sub>) can be easily and explicitly expressed/computed. Otherwise use `solve_ivp_sympext` if your coordinates are canonical, i.e., in $(q,p)$ or $(\psi,\psi^*)$ variables.  
+  - Use `extension=False` if the Hamiltonian can be split and if each partial operator exp(*h* X<sub>*k*</sub>) can be easily and explicitly expressed/computed. Otherwise use `extension=True`.  
   - The step size is slightly readjusted so that the final time *t*<sub>f</sub> corresponds to an integer number of step sizes. The step size used in the computation is recorded in the solution as `sol.step`.
   - For integrating multiple trajectories at the same time, extend phase space and define a state vector y = (y<sub>1</sub>, y<sub>2</sub>,...y<sub>N</sub>) where N is the number of trajectories. The Hamiltonian is given by $H(t,\mathbf{y})=\sum_{i=1}^N h(t, y_i)$.
 

@@ -27,15 +27,19 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from pyhamsys import HamSys
+from pyhamsys import HamSys, Parameters
 
 ## Parameters
-epsilon = 0.027					# parameter of the Hamiltonian system
-timestep = 2 * np.pi / 50		# integration timestep 
-N = 50  						# number of trajectories
-nf = 1000						# number of points on the Poincaré section per trajectory
-omega = None 					# restraint parameter for the method in [3]
-projection = 'symmetric'		# projection method used for extended phase space split integration
+epsilon = 0.027						# parameter of the Hamiltonian system
+N = 50  							# number of trajectories
+nf = 1000							# number of points on the Poincaré section per trajectory
+
+params = Parameters(				# integration parameters
+	step = 2 * np.pi / 50,			# integration timestep 
+	extension = True,				# use extended phase space integration
+	check_energy = True,			# check energy conservation
+	projection = 'symmetric'	  	# projection method used for extended phase space split integration
+	)  
 
 ## Hamiltonian system and equations of motion 
 def y_dot(t, y):
@@ -58,7 +62,7 @@ p0 = np.random.random(N)
 y0 = np.concatenate((x0, p0), axis=None)
 
 ## Integration
-sol = hs.integrate(y0, 2 * np.pi * np.arange(nf + 1), extension=True, timestep=timestep,  projection=projection, omega=omega, check_energy=True)
+sol = hs.integrate(y0, 2 * np.pi * np.arange(nf + 1), params=params)
 
 ## Plot of the Poincaré section
 fig, ax = plt.subplots()

@@ -41,6 +41,7 @@ from functools import partial
 import time
 import re
 from datetime import datetime
+from dataclasses import dataclass, asdict
 
 METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL', 'PEFRL', 'VEFRL', 'BM4', 'BM6', 'RKN4b', 'RKN6b', 'RKN6a', 'ABA104', 'ABA864', 'ABA1064']
 
@@ -52,6 +53,55 @@ def is_yoshida_format(name: str) -> bool:
 
 class OdeSolution(OptimizeResult):
     pass
+
+@dataclass
+class Parameters:
+	"""
+	Parameters for the integration of Hamiltonian systems.
+	Attributes
+	----------
+	step : float
+		Integration step.
+	solver : str, optional
+		Solver method. Must be in METHODS or IVP_METHODS. Default is 'BM4'.
+	extension : bool, optional
+		Whether to use the extended symplectic extension. Default is False.
+	tol : float, optional
+		For IVP solvers: absolute and relative tolerance.
+		For symplectic split solvers : tolerance for the implict determination 
+		of the symmetric projection (if projection='symmetric').
+		Default is 1e-8.
+	display : bool, optional
+		Whether to print runtime information. Default is True.
+	check_energy : bool, optional
+		If True, adds an auxiliary variable to check energy conservation.
+		Default is False.
+	projection : str, optional
+		The projection is relevant if extension is True.
+		If specified, uses the 'midpoint' or 'symmetric' projection to move from 
+		the extended phase space to the true phase space. Default is None. 
+		Solver must be in METHODS. 
+		If omega is None, projection is changed to 'midpoint'.
+	max_iter : int, optional
+		Maximum number of iterations for the implict determination of the 
+		symmetric projection (if projection='symmetric'). Default is 100.
+	omega : float, optional
+		Restraint parameter for symplectic extension solvers if projection is 
+		None. Default is None.
+	diss : float, optional
+		Dissipation parameter for symplectic extension solvers if projection is 
+		None. Default is None. 
+	"""
+	step: float = xp.inf
+	solver: str = 'BM4'
+	extension: bool = False
+	tol: float = 1e-8
+	display: bool = True
+	check_energy: bool = False
+	max_iter: int = 100
+	projection: str = None
+	omega: float = None
+	diss: float = None
 
 class HamSys:
 	def __init__(self, ndof: float=1, btype: str='pq', y_dot: Callable=None,\
@@ -124,7 +174,7 @@ class HamSys:
 	def _y_dot_ext(self, t: float, z: xp.ndarray) -> xp.ndarray:
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0: xp.ndarray, t_eval, check_energy: bool=False, display: bool=True, solver: str="BM4", timestep: float=xp.inf, command: Callable=None, extension: bool=False, projection: str=None, omega: float=None, diss: float=None, tol: float=1e-8, max_iter: int=100) -> OdeSolution:
+	def integrate(self, z0: xp.ndarray, t_eval, params: Parameters, command: Callable=None) -> OdeSolution:
 		"""
 		Integrate the system using either an IVP solver or a symplectic solver.
 
@@ -134,61 +184,40 @@ class HamSys:
 			Initial condition(s).
 		t_eval : array_like
 			Times at which to store the solution.
-		timestep : float
-			Integration time step.
-		solver : str, optional
-			Solver method. Must be in METHODS or IVP_METHODS.
-		check_energy : bool, optional
-			If True, adds an auxiliary variable to check energy conservation.
-		display : bool, optional
-			Whether to print runtime information. Default is True.
-		extension : bool, optional
-			Whether to use symplectic extension.
-		projection : str, optional
-			If specified, uses the 'midpoint' or 'symmetric' projection to move from 
-			the extended phase space to the true phase space. None is the default. 
-			Solver must be in METHODS. 
-			If omega is None, projection is changed to 'midpoint'.
-		omega : float, optional
-			Frequency parameter for symplectic extension solvers. default=None
-		diss : float, optional
-			Dissipation parameter for symplectic extension solvers.
-		tol : float, optional
-			For IVP solvers: absolute and relative tolerance.
-			For symplectic split solvers : tolerance for the implict determination 
-			of the symmetric projection (if projection='symmetric').
-		max_iter : int, optional
-			Maximum number of iterations for the implict determination 
-			of the symmetric projection (if projection='symmetric').
+		params : Parameters
+			Integration parameters. (see Parameters class)
+			The specification of the integration step is needed.
+		command : callable, optional
+			Function called at each time step with signature command(t, y).
 
 		Returns
 		-------
 		sol : object
 			Solution object with attributes depending on solver used.
 		"""
-		if solver not in ALL_METHODS and not is_yoshida_format(solver):
-			raise ValueError(f"Solver '{solver}' not recognized. "
+		if params.solver not in ALL_METHODS and not is_yoshida_format(params.solver):
+			raise ValueError(f"Solver '{params.solver}' not recognized. "
                  f"Valid solvers are {ALL_METHODS} or Yo# with # any integer.")
-		if solver in IVP_METHODS or ((solver in METHODS or is_yoshida_format(solver)) and extension):
+		if params.solver in IVP_METHODS or ((params.solver in METHODS or is_yoshida_format(params.solver)) and params.extension):
 			if not hasattr(self, 'y_dot'):
 				raise ValueError("In order to use an IVP solver or an extension in phase space, 'y_dot' must be provided.")
-		if (solver in METHODS or is_yoshida_format(solver)) and not extension:
+		if (params.solver in METHODS or is_yoshida_format(params.solver)) and not params.extension:
 			if not hasattr(self, 'chi') or not hasattr(self, 'chi_star'):
 				raise ValueError("In order to use a symplectic integrator, 'chi' and 'chi_star' must be provided.")
-		if solver in IVP_METHODS and check_energy:
+		if params.solver in IVP_METHODS and params.check_energy:
 			if not hasattr(self, 'k_dot'):
 				raise ValueError("In order to check energy with an IVP solver, 'k_dot' must be provided.")
 			z0 = xp.concatenate([z0, xp.zeros(1, dtype=z0.dtype)])
 		start = time.process_time()
-		if solver in IVP_METHODS:
-			sol = solve_ivp(self._y_dot_ext if check_energy else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=solver, atol=tol, rtol=tol, max_step=timestep)
-			sol = self.rectify_sol(sol, check_energy=check_energy)
-			sol.step = timestep
-		elif extension:
-			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, check_energy=check_energy, omega=omega, diss=diss, projection=projection, tol=tol, max_iter=max_iter, command=command)
+		if params.solver in IVP_METHODS:
+			sol = solve_ivp(self._y_dot_ext if params.check_energy else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step)
+			sol = self.rectify_sol(sol, check_energy=params.check_energy)
+			sol.step = params.step
+		elif params.extension:
+			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, step=params.step, t_eval=t_eval, method=params.solver, check_energy=params.check_energy, omega=params.omega, diss=params.diss, projection=params.projection, tol=params.tol, max_iter=params.max_iter, command=command)
 		else:
-			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, step=timestep, t_eval=t_eval, method=solver, command=command)
-		if check_energy:
+			sol = solve_ivp_symp(self.chi, self.chi_star, (t_eval[0], t_eval[-1]), z0, step=params.step, t_eval=t_eval, method=params.solver, command=command)
+		if params.check_energy:
 			try: 
 				sol.err = self.compute_energy(sol)
 			except:
@@ -196,7 +225,7 @@ class HamSys:
 			if not hasattr(self, 'hamiltonian'):
 				print(" Warning: In order to check energy, the attribute 'hamiltonian' must be provided.")
 		sol.cpu_time = time.process_time() - start
-		if display:
+		if params.display:
 			print(f'\033[90m        Computation finished in {int(sol.cpu_time)} seconds \033[00m')
 			if hasattr(sol, 'err') and sol.err is not None:
 				print(f'\033[90m           with error in energy = {sol.err:.2e} \033[00m')
@@ -204,9 +233,9 @@ class HamSys:
 				print(f'\033[90m           with projection ({sol.projection}) distance = {sol.proj_dist:.2e}\033[00m')
 		return sol
 	
-	def compute_lyapunov(self, tf: float, z0: xp.ndarray, reortho_dt: float, tol: float=1e-8, solver: str='RK45', display: bool=True) -> xp.ndarray:
-		if solver not in IVP_METHODS:
-			raise ValueError(f"Solver {solver} is not recognized for Lyapunov exponent computation."
+	def compute_lyapunov(self, tf: float, z0: xp.ndarray, reortho_dt: float, params: Parameters) -> xp.ndarray:
+		if params.solver not in IVP_METHODS:
+			raise ValueError(f"Solver {params.solver} is not recognized for Lyapunov exponent computation."
 							 f"Available solvers are {IVP_METHODS}.")
 		if not hasattr(self, 'y_dot_lyap'):
 			raise ValueError("In order to compute the Lyapunov spectrum, 'y_dot_lyap' must be provided.")
@@ -215,7 +244,7 @@ class HamSys:
 		lyap_sum = xp.zeros((2, n), dtype=xp.float64)
 		t, z = 0, xp.concatenate((z0, xp.ones(n), xp.zeros(n), xp.zeros(n), xp.ones(n)), axis=None)
 		for _ in range(int(tf / reortho_dt)):
-			sol = solve_ivp(self.y_dot_lyap, (t, t + reortho_dt), z, method=solver, t_eval=[t + reortho_dt], atol=tol, rtol=tol)
+			sol = solve_ivp(self.y_dot_lyap, (t, t + reortho_dt), z, method=params.solver, t_eval=[t + reortho_dt], atol=params.tol, rtol=params.tol)
 			z, Q = sol.y[:2 * n, -1], xp.moveaxis(sol.y[2 * n:, -1].reshape((2, 2, n)), -1, 0)
 			for i in range(n):
 				q, r = xp.linalg.qr(Q[i])
@@ -223,13 +252,12 @@ class HamSys:
 				Q[i] = q
 			t += reortho_dt
 			z = xp.concatenate((z, xp.moveaxis(Q, 0, -1)), axis=None)
-		if display:
+		if params.display:
 			print(f'\033[90m        Computation finished in {int(time.time() - start)} seconds \033[00m')
 		return xp.sort(lyap_sum / tf)
 	
-	def save_data(self, *data, params: dict=None, filename: str='', author: str='', display: bool=True) -> None:
-		params = dict(params) if params else {}
-		params = {k: (v if v is not None else []) for k, v in params.items()}
+	def save_data(self, *data, params: Parameters=None, filename: str='', author: str='', display: bool=True) -> None:
+		params = asdict(params) if params else {}
 		for i, d in enumerate(data):
 			params[f'data{i}'] = d
 		params['date'] = datetime.now().strftime("%B %d, %Y")
@@ -244,26 +272,23 @@ class HamSys:
 			print(f"\033[90m        Results saved in {filename}\033[00m")
 
 def adjust_step(t_span: tuple, step: float, t_eval: xp.ndarray=None) -> float:
-	if not xp.isfinite(step):
-		raise ValueError("Timestep must be a finite number.")
-	if step <= 0:
-		raise ValueError("The timestep must be strictly positive.")
-	if not ((isinstance(t_span, tuple) and len(t_span) == 2 and all(isinstance(t, (int, float)) for t in t_span))):
-		raise TypeError(f"t_span must be a tuple of two floats or integers, got {t_span}")
-	if t_span[0] > t_span[1]:
-		raise ValueError("Values in `t_span` are not properly sorted.")
+	if not (xp.isfinite(step) and step >0):
+		raise ValueError("Step must be a finite, positive number.")
+	t0, tf = map(float, t_span)
+	if t0 >= tf:
+		raise ValueError("t_span must be (start, end) where start < end.")
 	if t_eval is not None:
-		if t_eval.ndim != 1:
-			raise ValueError("`t_eval` must be 1-dimensional.")
-		if xp.any(t_eval < t_span[0]) or xp.any(t_eval > t_span[1]):
-			raise ValueError("Values in `t_eval` are not within `t_span`.")
+		if t_eval.ndim != 1 or len(t_eval) < 2:
+			raise ValueError("`t_eval` must be 1-dimensional with at least two points.")
+		if xp.any(t_eval < t0) or xp.any(t_eval > tf):
+			raise ValueError("`t_eval` values must be within `t_span`.")
 		if xp.any(xp.diff(t_eval) <= 0):
-			raise ValueError("Values in `t_eval` are not properly sorted.")
+			raise ValueError("`t_eval` values must be strictly increasing.")
 		n_eval = len(t_eval) - 1
 	else:
-		n_eval = int((t_span[1] - t_span[0]) / step) + 1
-	nstep = (int(xp.ceil((t_span[1] - t_span[0]) / step)) // n_eval) * n_eval + n_eval
-	return nstep, (t_span[1] - t_span[0]) / nstep
+		n_eval = int((tf - t0) / step) + 1
+	nstep = (int(xp.ceil((tf - t0) / step)) // n_eval) * n_eval + n_eval
+	return nstep, (tf - t0) / nstep
 
 def chi_potential(h, t, x, p, k=None, dvdx=None, dvdt=None):
 	if k is not None and dvdt is None:
@@ -422,17 +447,14 @@ class SymplecticIntegrator:
 		elif self.name == 'Yos6':
 			a = [0.784513610477560, 0.235573213359357, -1.17767998417887, 1.31518632068390]
 			alpha_s = [a[0]/2,  a[0]/2, a[1]/2, a[1]/2, a[2]/2, a[2]/2, a[3]/2]
-		elif self.name[:2] == 'Yo':
-			try:
-				alpha_s = xp.asarray([0.5])
-				for n in range(1, int(self.name[2:]) // 2):
-					x1 = 1 / (2 - 2**(1/(2*n+1)))
-					x0 = 1 - 2 * x1
-					alpha_ = xp.concatenate((alpha_s, xp.flip(alpha_s)))
-					alpha_ = xp.concatenate((x1 * alpha_, x0 * alpha_s))
-					alpha_s = alpha_.copy()
-			except:
-				raise NameError(f'{self.name} integrator not defined') 
+		elif is_yoshida_format(self.name):
+			alpha_s = xp.asarray([0.5])
+			for n in range(1, int(self.name[2:]) // 2):
+				x1 = 1 / (2 - 2**(1/(2*n+1)))
+				x0 = 1 - 2 * x1
+				alpha_ = xp.concatenate((alpha_s, xp.flip(alpha_s)))
+				alpha_ = xp.concatenate((x1 * alpha_, x0 * alpha_s))
+				alpha_s = alpha_.copy()
 		elif self.name.endswith('EFRL'):
 			if self.name.startswith('V'):
 				xi, lam, chi = 0.1644986515575760, -0.02094333910398989, 1.235692651138917
@@ -473,8 +495,8 @@ class SymplecticIntegrator:
 			t += h
 		return t, y
 	
-def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndarray, t_eval: Union[list, xp.ndarray]=None,
-				   method: str='BM4', step: float=xp.inf, command: Callable=None) -> OdeSolution:
+def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndarray, t_eval: Union[list, xp.ndarray]=None, 
+				   params: Parameters=None, command: Callable=None) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic splitting scheme (see [1]).
@@ -510,12 +532,9 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 		Times at which to store the computed solution, must be sorted and, 
 		lie within `t_span`. If None (default), use points selected by the 
 		solver.
-	method : string, optional
-        Pre-defined integration methods are listed on https://pypi.org/project/pyhamsys/ 
-		'BM4' is the default.
-	step : float
-		Step size.
-	command : function of (t, y) 
+	params : Parameters, optional
+		Parameters for the integration (see Parameters class).
+	command : function of (t, y), optional  
 		Function to be run at each step size.   
 
 	Returns
@@ -539,9 +558,12 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 	if t_eval is not None:
 		t_eval = xp.asarray(t_eval)
 
-	nstep, step_ = adjust_step(t_span, step, t_eval)
+	if params is None or params.step == xp.inf:
+		raise ValueError("Integration parameters (step) must be provided in 'params' argument.")
 
-	integrator = SymplecticIntegrator(method, step_)
+	nstep, step_ = adjust_step(t_span, params.step, t_eval)
+
+	integrator = SymplecticIntegrator(params.solver, step_)
 
 	times = xp.linspace(t0, tf, nstep + 1)
 	if t_eval is None:
@@ -562,8 +584,8 @@ def solve_ivp_symp(chi: Callable, chi_star: Callable, t_span: tuple, y0: xp.ndar
 			y_ = integrator._integrate_onestep(t, y_, chi, chi_star)[1]
 	return OdeSolution(t=t_out, y=y_out, step=step_)
 
-def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[list, xp.ndarray]=None, 
-					  method: str='BM4', step: float=xp.inf, omega: float=None, diss: float=None, projection: str=None, max_iter: int=100, tol: float=1e-10, command: Callable=None, check_energy: bool=False) -> OdeSolution:
+def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, params: Parameters, t_eval: Union[list, xp.ndarray]=None, 
+					  command: Callable=None) -> OdeSolution:
 	"""
 	Solve an initial value problem for a Hamiltonian system using an explicit 
 	symplectic approximation obtained by an extension in phase space (see [1]).
@@ -606,25 +628,11 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	t_eval : array_like or None, optional
 		Times at which to store the computed solution, must be sorted, and lie 
 		within `t_span`. If None (default), use points selected by the solver.
-	method : string, optional
-        Integration methods are listed on https://pypi.org/project/pyhamsys/  
-		'BM4' is the default.
-	step : float
-		Step size.
+	params : Parameters
+		Parameters for the integration (see Parameters class).
+		Step size is required.
 	command : function of (t, y) or None, optional
 		Function to be run at each step size. 
-	check_energy : bool, optional
-		If True, computes the total energy. Default is False. 
-	projection : str, optional
-		If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase
-		space to the true phase space. If omega is None, 'midpoint' is the default.
-	omega : float, optional
-		Coupling parameter in the extended phase space (see [1]); default=None
-	tol : float, optional
-		Tolerance for the implict determination of the symmetric projection. 
-	max_iter : int, optional
-		Maximum number of iterations for the implict determination 
-		of the symmetric projection.	
 
 	Returns
 	-------
@@ -658,9 +666,10 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 		integrators for non-separable Hamiltonian systems”, Mathematics of 
 		Computation 92.339, 251
 	"""
-	check_energy_ = check_energy * hs._time_dependent
+	check_energy_ = params.check_energy * hs._time_dependent
 	end_idx = -1 if check_energy_ else None
-	projection = None if omega is not None else 'midpoint'
+	projection = None if params.omega is not None else 'midpoint'
+	omega, diss = params.omega, params.diss
 
 	J20, J22 = xp.array([[1, 1], [1, 1]]) / 2, xp.array([[1, -1], [-1, 1]]) / 2
 	J40, J42c, J42s = xp.array([[1, 0, 1, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 0, 1]]) / 2, \
@@ -737,7 +746,7 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	def _fast_mu(func, tol: float, alpha:float) -> xp.ndarray:
 		_mu = xp.zeros_like(y0)
 		count = 0
-		while count < max_iter:
+		while count < params.max_iter:
 			diff = alpha * func(_mu)
 			_mu += diff
 			if (diff @ diff) < tol:
@@ -748,8 +757,8 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	def _refine_mu(t: float, y: xp.ndarray) -> xp.ndarray:
 		objective = partial(_residual, t=t, y=y)
 		alpha = -0.25
-		mu = _fast_mu(objective, tol, alpha)
-		res = root(objective, mu, method='broyden1', options={'fatol': tol, 'xatol': tol, 'maxiter': max_iter, 'jac_options': {'alpha': alpha}})
+		mu = _fast_mu(objective, params.tol, alpha)
+		res = root(objective, mu, method='broyden1', options={'fatol': params.tol, 'xatol': params.tol, 'maxiter': params.max_iter, 'jac_options': {'alpha': alpha}})
 		if res.success:
 			return res.x, True
 		else:
@@ -759,7 +768,7 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 		raise ValueError("The attribute 'y_dot' must be provided.")
 	if check_energy_ and not hasattr(hs, 'k_dot'):
 		raise ValueError("In order to check energy for a time-dependent system, the attribute 'k_dot' must be provided.")
-	if check_energy and not hasattr(hs, 'hamiltonian'):
+	if params.check_energy and not hasattr(hs, 'hamiltonian'):
 		raise ValueError("In order to check energy, the attribute 'hamiltonian' must be provided.")
 	
 	y_ = xp.tile(y0, 2).astype(xp.complex128 if hs._complex else xp.float64)
@@ -770,9 +779,9 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 	if t_eval is not None:
 		t_eval = xp.asarray(t_eval)
 
-	nstep, step_ = adjust_step(t_span, step, t_eval)
+	nstep, step_ = adjust_step(t_span, params.step, t_eval)
 
-	integrator = SymplecticIntegrator(method, step_)
+	integrator = SymplecticIntegrator(params.solver, step_)
 
 	times = xp.linspace(t0, tf, nstep + 1)
 	if t_eval is None:
@@ -809,9 +818,9 @@ def solve_ivp_sympext(hs: HamSys, t_span: tuple, y0: xp.ndarray, t_eval: Union[l
 				_dist = _distance(y_)
 			proj_dist = _dist if _dist > proj_dist else proj_dist
 	y_ = hs._split(y_out, 2, check_energy=check_energy_)
-	sol = OdeSolution(t=t_out, y=(y_[0] + y_[1]) / 2, step=step_, projection=_projection, proj_dist=proj_dist)
+	sol = OdeSolution(t=t_out, y=(y_[0] + y_[1]) / 2, step=step_, projection=_projection, proj_dist=proj_dist) 
 	if check_energy_:
 		sol.k = y_[-1] / 2
-	if check_energy:
+	if params.check_energy:
 		sol.err = hs.compute_energy(sol)
 	return sol

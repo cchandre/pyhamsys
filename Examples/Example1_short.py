@@ -28,7 +28,7 @@
 import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
-from pyhamsys import HamSys
+from pyhamsys import HamSys, Parameters
 
 ## Parameters
 epsilon = 0.027					# parameter of the Hamiltonian system
@@ -49,7 +49,7 @@ p0 = np.random.random(N)
 y0 = np.concatenate((x0, p0), axis=None)
 
 ## Integration
-sol = hs.integrate(y0, 2 * np.pi * np.arange(nf + 1), extension=True, timestep=timestep)
+sol = hs.integrate(y0, 2 * np.pi * np.arange(nf + 1), params=Parameters(step=timestep, extension=True))
 
 ## Plot of the Poincaré section
 fig, ax = plt.subplots()

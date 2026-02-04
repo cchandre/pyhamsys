@@ -27,7 +27,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from pyhamsys import HamSys
+from pyhamsys import HamSys, Parameters
 
 ## Parameters
 potential = lambda x: -1 / np.sqrt(x**2 + 1)
@@ -63,7 +63,7 @@ def plot(t, psi):
 		ax.set_title(f'$t = {{{t:.1f}}}$', loc='right', pad=20)
 		plt.pause(1e-4)
 		
-sol = hs.integrate(psi0(xgrid), (0, tf), extension=True, timestep=timestep, command=plot)
+sol = hs.integrate(psi0(xgrid), (0, tf), params=Parameters(step=timestep, extension=True), command=plot)
 
 plt.ioff()
 plt.show()

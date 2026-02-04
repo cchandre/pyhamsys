@@ -106,14 +106,14 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
   If `True`, prints runtime information such as CPU time, error in energy, and copy distance (if available).      
   - **check_energy** (`bool`, optional, default=`False`)  
   If `True`, appends an auxiliary variable to track the Hamiltonian. Requires `hamiltonian` and `k_dot` to be defined.
-  - **projection** (`str`, optional, default=None)
+  - **projection** (`str`, optional, default=None)   
   If specified, uses the 'midpoint' or 'symmetric' projection to move from the extended phase space to the true phase
   space. Possibilities include `symmetric` and `midpoint`. 
    - **omega** (`float`, optional, default=None)  
   Restraint parameter for symplectic extension solvers as in [4].
    - **diss** (`float`, optional, default=`0`)   
   Dissipative coefficient for improved accuracy when time steps are too large.
-  - **max_iter** (`int`, optional, default=100)
+  - **max_iter** (`int`, optional, default=100)   
   Maximum number of iterations for the implict determination of the symmetric projection.
   
   
@@ -124,7 +124,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
      - `t` : time points  
      - `step` : integration time step  
      - `cpu_time` : total CPU time used  
-     - `err` : (if `check_energy`=True) maximum error in energy
+     - `err` : (if `check_energy`=True) maximum error in energy   
      - `projection` : Type of projection successfully used in the computation (only for `extension`=True)   
      - `proj_dist` : Maximum distance between the two copies of the state in the extended phase space (only for `extension`=True)    
 
@@ -140,15 +140,15 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 
 ### Remarks:   
   - Use `extension=False` if the Hamiltonian can be split and if each partial operator exp(*h* X<sub>*k*</sub>) can be easily and explicitly expressed/computed. Otherwise use `extension=True`.  
-  - The step size is slightly readjusted so that the final time *t*<sub>f</sub> corresponds to an integer number of step sizes. The step size used in the computation is recorded in the solution as `sol.step`.
-  - For integrating multiple trajectories at the same time, extend phase space and define a state vector y = (y<sub>1</sub>, y<sub>2</sub>,...y<sub>N</sub>) where N is the number of trajectories. The Hamiltonian is given by $H(t,\mathbf{y})=\sum_{i=1}^N h(t, y_i)$.
+  - The step size is slightly readjusted so that the final time *t*<sub>f</sub> corresponds to an integer number of step sizes. The step size used in the computation is recorded in the solution as `sol.step`.   
+  - For integrating multiple trajectories at the same time, extend phase space and define a state vector y = (y<sub>1</sub>, y<sub>2</sub>,...y<sub>N</sub>) where N is the number of trajectories. The Hamiltonian is given by $H(t,\mathbf{y})=\sum_{i=1}^N h(t, y_i)$.   
 
 ### References:  
   - [1] Hairer, Lubich, Wanner, 2003, *Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations* (Springer)  
-  - [2] McLachlan, R., *Tuning symplectic integrators is easy and worthwhile*, Commun. Comput. Phys. 31, 987 (2022); [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)
-  - [3] Pihajoki, P., *Explicit methods in extended phase space for inseparable Hamiltonian problems*, Celest. Mech. Dyn. Astron. 121, 211 (2015)
-  - [4] Tao, M., *Explicit symplectic approximation of nonseparable Hamiltonians: Algorithm and long time performance*, Phys. Rev. E 94, 043303 (2016)
-  - [5] Jayawardana, B., Ohsawa, T. *Semiexplicit symplectic integrators for non-separable Hamiltonian systems*, Math. Comp. 92.339, 251 (2023)
+  - [2] McLachlan, R., *Tuning symplectic integrators is easy and worthwhile*, Commun. Comput. Phys. 31, 987 (2022); [arxiv:2104.10269](https://arxiv.org/abs/2104.10269)   
+  - [3] Pihajoki, P., *Explicit methods in extended phase space for inseparable Hamiltonian problems*, Celest. Mech. Dyn. Astron. 121, 211 (2015)   
+  - [4] Tao, M., *Explicit symplectic approximation of nonseparable Hamiltonians: Algorithm and long time performance*, Phys. Rev. E 94, 043303 (2016)   
+  - [5] Jayawardana, B., Ohsawa, T. *Semiexplicit symplectic integrators for non-separable Hamiltonian systems*, Math. Comp. 92.339, 251 (2023)   
 
 ### Example
 
@@ -168,7 +168,7 @@ sol = hs.integrate(y0, t_eval, params=params)
 plt.plot(sol.y[0], sol.y[1])
 plt.show()
 ```
-For more examples, see the folder [Examples](https://github.com/cchandre/pyhamsys/tree/main/Examples)
+For more examples, click [Examples](https://github.com/cchandre/pyhamsys/tree/main/Examples)
 
 ---
 

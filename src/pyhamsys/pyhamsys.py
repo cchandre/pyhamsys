@@ -41,7 +41,7 @@ from functools import partial
 import time
 import re
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 import logging
 from pathlib import Path
 
@@ -50,10 +50,17 @@ METHODS = ['Verlet', 'FR', 'Yo# with # any integer', 'Yos6', 'M2', 'M4', 'EFRL',
 IVP_METHODS = list(IVP_METHODS.keys())
 ALL_METHODS = METHODS + IVP_METHODS
 
-GRAY = '\033[90m'
-RESET = '\033[00m'
-LOG_FORMAT = f"{GRAY}        %(message)s{RESET}" 
-logger = logging.getLogger(__name__) 
+class CustomFormatter(logging.Formatter):
+    GRAY = "\033[90m"
+    RED = "\033[91m"
+    RESET = "\033[0m"
+    FORMAT = "        %(message)s"
+
+    def format(self, record):
+        color = self.RED if record.levelno >= logging.ERROR else self.GRAY
+        log_fmt = f"{color}{self.FORMAT}{self.RESET}"
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
 
 def is_yoshida_format(name: str) -> bool:
     return bool(re.match(r'^Yo\d+$', name))
@@ -109,9 +116,15 @@ class Parameters:
 	projection: str = None
 	omega: float = None
 	diss: float = None
+	logger: logging.Logger = field(init=False)
 
 	def __post_init__(self):
-		logger.setLevel(logging.INFO if self.display else logging.WARNING)
+		self.logger = logging.getLogger(self.__class__.__name__)
+		self.logger.setLevel(logging.INFO if self.display else logging.WARNING)
+		if not self.logger.handlers and not logging.getLogger().hasHandlers():
+			handler = logging.StreamHandler()
+			handler.setFormatter(CustomFormatter())
+			self.logger.addHandler(handler)
 
 class HamSys:
 	def __init__(self, ndof: float=1, btype: str='pq', **kwargs: Optional[Callable]) -> None:
@@ -134,7 +147,7 @@ class HamSys:
 	
 	def _create_function(self, t: float, y: xp.ndarray, eqn: Callable) -> xp.ndarray:
 		q, p = xp.split(y, 2)
-		return xp.asarray(eqn(q, p, t)).flatten()
+		return xp.asarray(eqn(*q, *p, t)).flatten()
 	
 	def _rectify_sol(self, sol: OdeSolution, check_energy: bool=False) -> OdeSolution:
 		if not check_energy:
@@ -168,29 +181,28 @@ class HamSys:
 		"""
 		if self.btype != 'pq':
 			raise ValueError("Vector-field computation is only implemented for 'pq' variables.")
-		q = sp.symbols(f'q0:{self._ndof}') if self._ndof > 1 else sp.Symbol('q')
-		p = sp.symbols(f'p0:{self._ndof}') if self._ndof > 1 else sp.Symbol('p')
+		q = sp.symbols(f'q0:{self._ndof}')
+		p = sp.symbols(f'p0:{self._ndof}')
 		t = sp.Symbol('t')
-		h_expr = hamiltonian(q, p, t)
+		args = (*q, *p, t)
+		h_expr = hamiltonian(*args)
 		grad_q = sp.derive_by_array(h_expr, q)
 		grad_p = sp.derive_by_array(h_expr, p)
-		eqn = [*grad_p, *[-expr for expr in grad_q]]
+		eqn = sp.Matrix([*grad_p, *[-item for item in grad_q]])
 		if output:
-			print(f'y_dot : {eqn}')
+			print(f'y_dot : {list(eqn)}')
 		for attr, expr in [('hamiltonian', h_expr), ('y_dot', eqn)]:
-			func = sp.lambdify([q, p, t], expr)
+			func = sp.lambdify(args, expr, modules='numpy')
 			setattr(self, attr, partial(self._create_function, eqn=func))
 		if self._time_dependent and check_energy:
 			eqn_t = -sp.diff(h_expr, t)
 			if output and eqn_t != 0:
 				print(f'k_dot : {eqn_t}')
-			func_t = sp.lambdify([q, p, t], eqn_t)
+			func_t = sp.lambdify(args, eqn_t, modules='numpy')
 			self.k_dot = partial(self._create_function, eqn=func_t)
 
 	def _compute_energy(self, sol: OdeSolution, maxerror: bool=True) -> xp.ndarray:
-		val_h = xp.empty_like(sol.t)
-		v_ham = xp.vectorize(self.hamiltonian)
-		val_h = v_ham(sol.t, sol.y)
+		val_h = xp.array([self.hamiltonian(t, y) for t, y in zip(sol.t, sol.y.T)])
 		if self._time_dependent:
 			val_h += sol.k
 		return xp.max(xp.abs(val_h - val_h[0])) if maxerror else val_h
@@ -217,6 +229,7 @@ class HamSys:
 			sol : object
 				Solution object with attributes depending on solver used.
 		"""
+		check_energy_ = params.check_energy * self._time_dependent
 		if params.solver not in ALL_METHODS and not is_yoshida_format(params.solver):
 			raise ValueError(f"Solver '{params.solver}' not recognized. "
                  f"Valid solvers are {ALL_METHODS} or Yo# with # any integer.")
@@ -226,14 +239,14 @@ class HamSys:
 		if (params.solver in METHODS or is_yoshida_format(params.solver)) and not params.extension:
 			if not hasattr(self, 'chi') or not hasattr(self, 'chi_star'):
 				raise ValueError("In order to use a symplectic integrator, 'chi' and 'chi_star' must be provided.")
-		if params.solver in IVP_METHODS and params.check_energy:
+		if params.solver in IVP_METHODS and check_energy_:
 			if not hasattr(self, 'k_dot'):
 				raise ValueError("In order to check energy with an IVP solver, 'k_dot' must be provided.")
 			z0 = xp.concatenate([z0, xp.zeros(1, dtype=z0.dtype)])
 		start = time.process_time()
 		if params.solver in IVP_METHODS:
-			sol = solve_ivp(self._y_dot_ext if params.check_energy else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step)
-			sol = self._rectify_sol(sol, check_energy=params.check_energy)
+			sol = solve_ivp(self._y_dot_ext if check_energy_ else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step)
+			sol = self._rectify_sol(sol, check_energy=check_energy_)
 			sol.step = params.step
 		elif params.extension:
 			sol = solve_ivp_sympext(self, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, params=params, command=command)
@@ -245,13 +258,13 @@ class HamSys:
 			except:
 				sol.err = None
 			if not hasattr(self, 'hamiltonian'):
-				logger.warning("In order to check energy, the attribute 'hamiltonian' must be provided.")
+				params.logger.warning("In order to check energy, the attribute 'hamiltonian' must be provided.")
 		sol.cpu_time = time.process_time() - start
-		logger.info(f"Computation finished in {int(sol.cpu_time)} seconds")
+		params.logger.info(f"Computation finished in {int(sol.cpu_time)} seconds")
 		if getattr(sol, 'err', None) is not None:
-			logger.info(f"with error in energy = {sol.err:.2e}")
+			params.logger.info(f"with error in energy = {sol.err:.2e}")
 		if hasattr(sol, 'proj_dist'): 
-			logger.info(f"with projection ({sol.projection}) distance = {sol.proj_dist:.2e}")
+			params.logger.info(f"with projection ({sol.projection}) distance = {sol.proj_dist:.2e}")
 		return sol
 	
 	def compute_lyapunov(self, tf: float, z0: xp.ndarray, reortho_dt: float, params: Parameters) -> xp.ndarray:
@@ -273,23 +286,24 @@ class HamSys:
 				Q[i] = q
 			t += reortho_dt
 			z = xp.concatenate((z, xp.moveaxis(Q, 0, -1)), axis=None)
-		logger.info(f"Computation finished in {int(time.time() - start)} seconds")
+		params.logger.info(f"Computation finished in {int(time.time() - start)} seconds")
 		return xp.sort(lyap_sum / tf)
 	
-	def save_data(self, *data, params: Optional[Parameters]=None, filename: str='hamsys', author: str='') -> None:
+	def save_data(self, params: Optional[Parameters]=None, filename: str='hamsys', author: str='', **results) -> None:
 		path = Path(filename)
 		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 		new_filename = f"{path.stem}_{timestamp}.mat"
 		output = {
         	'metadata': {
-				'author': author if author else 'cristel.chandre@cnrs.fr',
+				'author': author or 'cristel.chandre@cnrs.fr',
 				'date': datetime.now().strftime("%B %d, %Y"),
 				'ndof': self._ndof,
 				'btype': self.btype},
 			'params': asdict(params) if params else {},
-			'results': {f'data_{i}': d for i, d in enumerate(data)}}
+			'results': results}
 		savemat(new_filename, output)
-		logger.info(f"Results saved in {new_filename}")
+		if params and hasattr(params, 'logger'):
+			params.logger.info(f"Results saved in {new_filename}")
 
 def adjust_step(t_span: tuple, step: float, t_eval: xp.ndarray=None) -> Tuple[int, float]:
 	if not (xp.isfinite(step) and step >0):

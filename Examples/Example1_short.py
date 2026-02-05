@@ -37,8 +37,9 @@ N = 50  						# number of trajectories
 nf = 1000						# number of points on the Poincaré section per trajectory
 
 ## Hamiltonian system
-def hamiltonian(q, p, t):
-	return sum([p_**2 / 2 + epsilon * (sp.cos(q_ - t) + sp.cos(q_)) for q_, p_ in zip(q, p)])
+def hamiltonian(*z):
+	q, p, t = z[:N], z[N:], z[-1]
+	return sum([p_**2 / 2 + epsilon * sp.cos(q_ - t) + sp.cos(q_) for q_, p_ in zip(q, p)])
 
 hs = HamSys(ndof=N)
 hs.compute_vector_field(hamiltonian)

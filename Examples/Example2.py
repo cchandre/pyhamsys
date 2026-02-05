@@ -51,7 +51,7 @@ hs = HamSys(ndof=N, btype='psi', y_dot=y_dot)
 ## Integration and plot of wavefunction
 plt.ion()
 fig, ax = plt.subplots()
-h, = ax.plot(xgrid, np.abs(psi0(xgrid))**2, 'k', linewidth=2)
+h, = ax.plot(xgrid, np.abs(psi0(xgrid))**2, color='#003366', linewidth=2)
 ax.set_title('$t = 0 $', loc='right', pad=20)
 ax.set_xlabel('$x$')
 ax.set_ylabel(r'$\vert\psi (x,t)\vert^2$')

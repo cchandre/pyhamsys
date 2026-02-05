@@ -169,6 +169,7 @@ params = Parameters(step=1e-1, extension=True, check_energy=True)
 sol = hs.integrate(y0, t_eval, params=params)
 plt.plot(sol.y[0], sol.y[1])
 plt.show()
+
 ```
 For more examples, click [Examples](https://github.com/cchandre/pyhamsys/tree/main/Examples)
 

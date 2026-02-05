@@ -71,7 +71,7 @@ The `HamSys` class provides a robust framework for defining and integrating Hami
 ### Functions
 - `compute_vector_field` : from a callable function (Hamiltonian in canonical coordinates) written with symbolic variables ([SymPy](https://www.sympy.org/en/index.html)), computes the vector fields, `y_dot` and `k_dot`.
 
-	Determine Hamilton's equations of motion from a given scalar function &ndash;the Hamiltonian&ndash; *H*(*q*, *p*, *t*) where *q* and *p* are respectively positions and momenta. However, it is preferrable to code explicitly and optimize `y_dot` and `k_dot`.
+	Determine Hamilton's equations of motion from a given scalar function &ndash;the Hamiltonian&ndash; *H*(*q*, *p*, *t*) where *q* and *p* are respectively positions and momenta. However, it is preferrable to code explicitly and optimize `y_dot` and `k_dot`. For systems with *n* degrees of freedom, the Hamiltonian should be of the form $$H(q_1,\ldots,q_n,p_1,\ldots,p_n,t)$$ (see [Example 1](./Examples/Example1_short.py)).
 
 	#### Parameters
 	- `hamiltonian` : callable   
@@ -171,7 +171,7 @@ plt.plot(sol.y[0], sol.y[1])
 plt.show()
 
 ```
-For more examples, click [Examples](https://github.com/cchandre/pyhamsys/tree/main/Examples)
+For more examples, click [Examples](./Examples)
 
 ---
 

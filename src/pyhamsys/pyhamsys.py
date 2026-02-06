@@ -295,14 +295,15 @@ class HamSys:
 		new_filename = f"{path.stem}_{timestamp}.mat"
 		
 		def clean_dict(d):
-        	return {k: (v if v is not None else []) for k, v in d.items()}
+			return {k: (v if v is not None else []) for k, v in d.items()}
+		
 		output = {
         	'metadata': {
 				'author': author or 'cristel.chandre@cnrs.fr',
 				'date': datetime.now().strftime("%B %d, %Y"),
 				'ndof': self._ndof,
 				'btype': self.btype},
-			'params': asdict(params) if params else {},
+			'params': clean_dict(asdict(params)) if params else {},
 			'results': results}
 		savemat(new_filename, output)
 		if params and hasattr(params, 'logger'):

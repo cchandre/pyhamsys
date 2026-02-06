@@ -293,6 +293,9 @@ class HamSys:
 		path = Path(filename)
 		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 		new_filename = f"{path.stem}_{timestamp}.mat"
+		
+		def clean_dict(d):
+        	return {k: (v if v is not None else []) for k, v in d.items()}
 		output = {
         	'metadata': {
 				'author': author or 'cristel.chandre@cnrs.fr',

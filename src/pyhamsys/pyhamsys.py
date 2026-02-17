@@ -290,24 +290,41 @@ class HamSys:
 		return xp.sort(lyap_sum / tf)
 	
 	def save_data(self, params: Optional[Parameters]=None, filename: str='hamsys', author: str='', **results) -> None:
+		now = datetime.now()
+		timestamp = now.strftime("%Y%m%d_%H%M%S")
 		path = Path(filename)
-		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-		new_filename = f"{path.stem}_{timestamp}.mat"
-		
-		def clean_dict(d):
-			return {k: (v if v is not None else []) for k, v in d.items()}
-		
+		save_path = path.parent / f"{path.stem}_{timestamp}.mat"
+
+		def sanitize(data):
+			if isinstance(data, dict):
+				return {k: sanitize(v) for k, v in data.items()}
+			elif isinstance(data, (list, tuple)):
+				return [sanitize(i) for i in data]
+			return data if data is not None else ""
+	
 		output = {
         	'metadata': {
 				'author': author or 'cristel.chandre@cnrs.fr',
-				'date': datetime.now().strftime("%B %d, %Y"),
-				'ndof': self._ndof,
-				'btype': self.btype},
-			'params': clean_dict(asdict(params)) if params else {},
+				'date': now.strftime("%B %d, %Y"),
+				'ndof': getattr(self, '_ndof', None),
+				'btype': getattr(self, 'btype', None)},
+			'params': asdict(params) if params else {},
 			'results': results}
-		savemat(new_filename, output)
-		if params and hasattr(params, 'logger'):
-			params.logger.info(f"Results saved in {new_filename}")
+		try:
+			savemat(save_path, sanitize(output))
+			logger = getattr(params, 'logger', None)
+			if logger:
+				logger.info(f"Results successfully saved to {save_path}")
+			else:
+				print(f"Results saved to {save_path}")
+		except Exception as e:
+			error_msg = f"Failed to save data to {save_path}: {e}"
+			logger = getattr(params, 'logger', None)
+			if logger:
+				logger.error(error_msg)
+			else:
+				print(error_msg)
+			raise
 
 def adjust_step(t_span: tuple, step: float, t_eval: xp.ndarray=None) -> Tuple[int, float]:
 	if not (xp.isfinite(step) and step >0):

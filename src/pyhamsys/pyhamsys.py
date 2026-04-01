@@ -210,7 +210,7 @@ class HamSys:
 	def _y_dot_ext(self, t: float, z: xp.ndarray) -> xp.ndarray:
 		return xp.concatenate((self.y_dot(t, z[:-1]), self.k_dot(t, z[:-1])), axis=None)
 	
-	def integrate(self, z0: xp.ndarray, t_eval, params: Parameters, command: Callable=None) -> OdeSolution:
+	def integrate(self, z0: xp.ndarray, t_eval, params: Parameters, command: Callable=None, **kwargs) -> OdeSolution:
 		"""
 		Integrate the Hamiltonian system using either an IVP solver or a symplectic solver.
 
@@ -245,7 +245,7 @@ class HamSys:
 			z0 = xp.concatenate([z0, xp.zeros(1, dtype=z0.dtype)])
 		start = time.process_time()
 		if params.solver in IVP_METHODS:
-			sol = solve_ivp(self._y_dot_ext if check_energy_ else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step)
+			sol = solve_ivp(self._y_dot_ext if check_energy_ else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step, **kwargs)
 			sol = self._rectify_sol(sol, check_energy=check_energy_)
 			sol.step = params.step
 		elif params.extension:
@@ -267,7 +267,7 @@ class HamSys:
 			params.logger.info(f"with projection ({sol.projection}) distance = {sol.proj_dist:.2e}")
 		return sol
 	
-	def compute_lyapunov(self, tf: float, z0: xp.ndarray, reortho_dt: float, params: Parameters) -> xp.ndarray:
+	def compute_lyapunov(self, tf: float, z0: xp.ndarray, reortho_dt: float, params: Parameters, **kwargs) -> xp.ndarray:
 		if params.solver not in IVP_METHODS:
 			raise ValueError(f"Solver {params.solver} is not recognized for Lyapunov exponent computation."
 							 f"Available solvers are {IVP_METHODS}.")
@@ -278,7 +278,7 @@ class HamSys:
 		lyap_sum = xp.zeros((2, n), dtype=xp.float64)
 		t, z = 0, xp.concatenate((z0, xp.ones(n), xp.zeros(n), xp.zeros(n), xp.ones(n)), axis=None)
 		for _ in range(int(tf / reortho_dt)):
-			sol = solve_ivp(self.y_dot_lyap, (t, t + reortho_dt), z, t_eval=[t + reortho_dt], method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step)
+			sol = solve_ivp(self.y_dot_lyap, (t, t + reortho_dt), z, t_eval=[t + reortho_dt], method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step, **kwargs)
 			z, Q = sol.y[:2 * n, -1], xp.moveaxis(sol.y[2 * n:, -1].reshape((2, 2, n)), -1, 0)
 			for i in range(n):
 				q, r = xp.linalg.qr(Q[i])

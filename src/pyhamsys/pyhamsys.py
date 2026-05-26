@@ -40,6 +40,7 @@ import sympy as sp
 from functools import partial 
 import time
 import re
+import inspect
 from datetime import datetime
 from dataclasses import dataclass, asdict, field
 import logging
@@ -64,6 +65,15 @@ class CustomFormatter(logging.Formatter):
 
 def is_yoshida_format(name: str) -> bool:
     return bool(re.match(r'^Yo\d+$', name))
+
+def clean_keywords(kwargs: dict) -> dict:
+	remove_params = ["atol", "rtol", "max_step", "method"]
+	valid_params = inspect.signature(solve_ivp).parameters.keys()
+	common_keys = kwargs.keys() & valid_params
+	filtered_kwargs = {k: kwargs[k] for k in common_keys}
+	for param in remove_params:
+		filtered_kwargs.pop(param, None)
+	return filtered_kwargs
 
 class OdeSolution(OptimizeResult):
     pass
@@ -245,7 +255,8 @@ class HamSys:
 			z0 = xp.concatenate([z0, xp.zeros(1, dtype=z0.dtype)])
 		start = time.process_time()
 		if params.solver in IVP_METHODS:
-			sol = solve_ivp(self._y_dot_ext if check_energy_ else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step, **kwargs)
+			filtered_kwargs = clean_keywords(kwargs)
+			sol = solve_ivp(self._y_dot_ext if check_energy_ else self.y_dot, (t_eval[0], t_eval[-1]), z0, t_eval=t_eval, method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step, **filtered_kwargs)
 			sol = self._rectify_sol(sol, check_energy=check_energy_)
 			sol.step = params.step
 		elif params.extension:
@@ -271,6 +282,7 @@ class HamSys:
 		if params.solver not in IVP_METHODS:
 			raise ValueError(f"Solver {params.solver} is not recognized for Lyapunov exponent computation."
 							 f"Available solvers are {IVP_METHODS}.")
+		filtered_kwargs = clean_keywords(kwargs)
 		if not hasattr(self, 'y_dot_lyap'):
 			raise ValueError("In order to compute the Lyapunov spectrum, 'y_dot_lyap' must be provided.")
 		start = time.time()
@@ -278,7 +290,7 @@ class HamSys:
 		lyap_sum = xp.zeros((2, n), dtype=xp.float64)
 		t, z = 0, xp.concatenate((z0, xp.ones(n), xp.zeros(n), xp.zeros(n), xp.ones(n)), axis=None)
 		for _ in range(int(tf / reortho_dt)):
-			sol = solve_ivp(self.y_dot_lyap, (t, t + reortho_dt), z, t_eval=[t + reortho_dt], method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step, **kwargs)
+			sol = solve_ivp(self.y_dot_lyap, (t, t + reortho_dt), z, t_eval=[t + reortho_dt], method=params.solver, atol=params.tol, rtol=params.tol, max_step=params.step, **filtered_kwargs)
 			z, Q = sol.y[:2 * n, -1], xp.moveaxis(sol.y[2 * n:, -1].reshape((2, 2, n)), -1, 0)
 			for i in range(n):
 				q, r = xp.linalg.qr(Q[i])
